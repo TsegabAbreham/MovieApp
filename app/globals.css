@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
+
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: rgba(255,255,255,0.12);
 }
 
 @theme inline {
@@ -14,7 +15,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+    --background: #121328;
     --foreground: #ededed;
   }
 }
@@ -23,4 +24,51 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge, and Firefox */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE & Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+/* Ensure HeroUI input parts are transparent and follow our theme */
+[data-slot="input-wrapper"] {
+  background-color: #0f1724 !important; /* match the component wrapper */
+  border-color: rgba(148,163,184,0.12) !important;
+}
+
+[data-slot="input"] {
+  background: transparent !important;
+  color: #ffffff !important;
+  caret-color: #60a5fa !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove browser autofill yellow/white background in Chromium-based browsers */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #0f1724 inset !important;
+  box-shadow: 0 0 0 1000px #0f1724 inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Remove default focus outline while keeping your custom focus ring (we use focus-within on wrapper) */
+[data-slot="input"]:focus {
+  outline: none !important;
+  box-shadow: none !important;
 }
