@@ -1,11 +1,13 @@
 "use client";
-export const dynamic = "force-dynamic";
+import dynamic from "next/dynamic";
+
+const Input = dynamic(() => import("@heroui/react").then(mod => mod.Input), { ssr: false });
+const Card = dynamic(() => import("@heroui/card").then(mod => mod.Card), { ssr: false });
+
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navigation from "../Navigation";
-import { Input } from "@heroui/react";
-import { Card } from "@heroui/card";
 
 interface Movie {
   id: string;
