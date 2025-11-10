@@ -1,13 +1,9 @@
 "use client";
-import dynamic from "next/dynamic";
-
-const Input = dynamic(() => import("@heroui/react").then(mod => mod.Input), { ssr: false });
-const Card = dynamic(() => import("@heroui/card").then(mod => mod.Card), { ssr: false });
-
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import Navigation from "../Navigation";
+import { Input } from "@heroui/react";
+import { Card } from "@heroui/card";
 
 interface Movie {
   id: string;
@@ -19,46 +15,44 @@ interface Movie {
   plot: string;
 }
 
-const PLACEHOLDER = "/placeholder-poster.png"; // adjust to your asset
+const PLACEHOLDER = "/placeholder-poster.png";
 
 export default function BrowsePage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const qParam = searchParams?.get("q") ?? "";
-  const [query, setQuery] = useState<string>(qParam);
+  const [query, setQuery] = useState<string>("");
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Keep local query in sync with URL
+  // Read initial ?q= from URL on mount (client-side only)
   useEffect(() => {
-    setQuery(qParam);
-  }, [qParam]);
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const initial = params.get("q") ?? "";
+    setQuery(initial);
+  }, []);
 
-  // Fetch when qParam changes
+  // Fetch when query changes (debounce optional)
   useEffect(() => {
-    if (!qParam) {
+    // If query is empty, clear results
+    if (!query) {
       setMovies([]);
       setLoading(false);
       return;
     }
 
-    // cancel previous
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
+    // Abort previous
+    if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
     const fetchMovies = async () => {
       setLoading(true);
       try {
-        const url = `https://api.imdbapi.dev/search/titles?query=${encodeURIComponent(qParam)}`;
+        const url = `https://api.imdbapi.dev/search/titles?query=${encodeURIComponent(query)}`;
         const res = await fetch(url, { signal: controller.signal });
         const data = await res.json();
 
-        // Defensive parsing: the free IMDb-like endpoints change shape.
-        // Try common fields: data.results, data.titles, or top-level array.
+        // Defensive parsing for inconsistent response shapes
         let items: any[] = [];
         if (Array.isArray(data)) items = data;
         else if (Array.isArray(data.results)) items = data.results;
@@ -66,12 +60,10 @@ export default function BrowsePage() {
         else if (Array.isArray(data.results?.titles)) items = data.results.titles;
         else if (Array.isArray(data.data)) items = data.data;
         else {
-          // try to find first array in object
           const arr = Object.values(data).find((v) => Array.isArray(v));
           if (Array.isArray(arr)) items = arr as any[];
         }
 
-        // map to Movie[] with fallbacks
         const mapped: Movie[] = (items || []).map((it: any) => {
           const id =
             it.id ||
@@ -104,7 +96,9 @@ export default function BrowsePage() {
 
           const genres =
             (Array.isArray(it.genres) && it.genres) ||
-            (typeof it.genre === "string" ? it.genre.split(",").map((s: string) => s.trim()) : []) ||
+            (typeof it.genre === "string"
+              ? it.genre.split(",").map((s: string) => s.trim())
+              : []) ||
             [];
 
           const rating =
@@ -131,7 +125,7 @@ export default function BrowsePage() {
         setMovies(mapped);
       } catch (err: any) {
         if (err.name === "AbortError") {
-          // ignore aborted
+          // ignored
         } else {
           console.error("Error fetching movies:", err);
         }
@@ -146,15 +140,20 @@ export default function BrowsePage() {
       controller.abort();
       abortRef.current = null;
     };
-  }, [qParam]);
+  }, [query]);
 
-  // Submit: push ?q=...
+  // User submits search: update query state and URL (no Next hooks)
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const q = query?.trim();
     if (!q) return;
-    router.push(`/browse?q=${encodeURIComponent(q)}`);
-    // next navigation will update useSearchParams and trigger fetch effect
+    // Update URL without reload
+    if (typeof window !== "undefined") {
+      const newUrl = `/browse?q=${encodeURIComponent(q)}`;
+      window.history.pushState(null, "", newUrl);
+    }
+    // setQuery already has q because input is bound to query; ensure it triggers fetch
+    setQuery(q);
   };
 
   const featured = useMemo(() => movies.slice(0, Math.min(5, movies.length)), [movies]);
@@ -162,7 +161,6 @@ export default function BrowsePage() {
   return (
     <>
       <Navigation />
-      {/* Push content down to avoid fixed navbar overlap. Adjust value to match your nav height */}
       <div className="pt-[72px] min-h-[70vh] p-6 sm:p-10 bg-[#0b0f1a] text-white">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl sm:text-4xl font-bold mb-6">Search Movies & TV Shows</h1>
@@ -198,7 +196,6 @@ export default function BrowsePage() {
             <div className="py-12 text-center text-gray-300">No results. Try another query.</div>
           ) : (
             <>
-              {/* Featured strip */}
               {featured.length > 0 && (
                 <section className="mb-8">
                   <h2 className="text-2xl font-semibold mb-3">Featured</h2>
@@ -221,7 +218,6 @@ export default function BrowsePage() {
                 </section>
               )}
 
-              {/* Grid */}
               <section>
                 <h2 className="text-2xl font-semibold mb-4">Results</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
@@ -230,7 +226,12 @@ export default function BrowsePage() {
                       <Card
                         isPressable
                         shadow="lg"
-                        onPress={() => router.push(`/Movies/${m.id}`)}
+                        onPress={() => {
+                          // simple navigation without next/router to avoid hooks
+                          if (typeof window !== "undefined") {
+                            window.location.href = `/Movies/${m.id}`;
+                          }
+                        }}
                         className="overflow-hidden rounded-lg transform hover:scale-105 hover:shadow-2xl transition-transform"
                       >
                         <div className="relative w-full h-[260px]">

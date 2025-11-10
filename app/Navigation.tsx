@@ -1,7 +1,8 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import { Navbar, NavbarBrand, NavbarContent, NavbarItem, Link } from "@heroui/react";
-import { usePathname } from "next/navigation";
+import { usePathname } from "next/navigation"; // ✅ fixed import
 
 export const SearchIcon = ({
   size = 24,
@@ -10,11 +11,11 @@ export const SearchIcon = ({
   height,
   ...props
 }: {
-  size?: number
-  strokeWidth?: number
-  width?: number | string
-  height?: number | string
-  [key: string]: any
+  size?: number;
+  strokeWidth?: number;
+  width?: number | string;
+  height?: number | string;
+  [key: string]: any;
 }) => (
   <svg
     aria-hidden="true"
@@ -44,16 +45,14 @@ export const SearchIcon = ({
 );
 
 export default function Navigation() {
-  const pathname = usePathname();
+  const pathname = usePathname(); // ✅ this works now
 
   return (
     <Navbar shouldHideOnScroll className="bg-gray-900 shadow-md px-6 py-3 fixed w-full z-50">
-      {/* Brand */}
       <NavbarBrand>
         <img src="/favicon.ico" alt="MovieApp Logo" className="h-8 w-8 mr-2 inline-block" />
       </NavbarBrand>
 
-      {/* Centered links */}
       <NavbarContent justify="center" className="hidden sm:flex gap-6">
         <NavbarItem isActive={pathname.toLowerCase() === "/movies"}>
           <Link
@@ -93,7 +92,6 @@ export default function Navigation() {
         </NavbarItem>
       </NavbarContent>
 
-      {/* Right side: search icon */}
       <NavbarContent justify="end" className="flex items-center gap-4 ml-auto">
         <NavbarItem
           className={`hidden lg:flex ${
@@ -103,10 +101,7 @@ export default function Navigation() {
           }`}
           isActive={pathname.toLowerCase() === "/browse"}
         >
-          <Link
-            href="/browse"
-            className="transition-colors text-white text-[16px] font-medium hover:text-blue-400"
-          >
+          <Link href="/browse" className="transition-colors text-white text-[16px] font-medium hover:text-blue-400">
             <SearchIcon size={20} />
           </Link>
         </NavbarItem>
