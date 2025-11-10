@@ -210,7 +210,7 @@ export default function Sport() {
             return (
               <article
                 key={m.id}
-                onClick={() => router.push(`/sport/${encodeURIComponent(m.id)}`)}
+                onClick={() => router.push(`/Livesports/${encodeURIComponent(m.id)}`)}
                 className="cursor-pointer rounded bg-gray-800 overflow-hidden hover:shadow-lg transition-shadow"
               >
                 <div className="w-full h-44 bg-gray-700 overflow-hidden flex items-center justify-center">
