@@ -3,7 +3,19 @@
 import { Navbar, NavbarBrand, NavbarContent, NavbarItem, Link } from "@heroui/react";
 import { usePathname } from "next/navigation";
 
-export const SearchIcon = ({ size = 24, strokeWidth = 1.5, width, height, ...props }) => (
+export const SearchIcon = ({
+  size = 24,
+  strokeWidth = 1.5,
+  width,
+  height,
+  ...props
+}: {
+  size?: number
+  strokeWidth?: number
+  width?: number | string
+  height?: number | string
+  [key: string]: any
+}) => (
   <svg
     aria-hidden="true"
     fill="none"
