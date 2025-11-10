@@ -326,7 +326,7 @@ export default function TVshowGallery() {
                 scrollGenre(genre, "left");
               }} className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white px-3 py-2 rounded">◀</button>
 
-              <div ref={(el) => (genreRefs.current[genre] = el)} className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth py-2">
+              <div ref={(el) => {(genreRefs.current[genre] = el)}} className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth py-2">
                 {genreMovies.map((movie, colIdx) => {
                   const isFocused = focusRow === rowNumber && focusCol === colIdx;
                   return (
