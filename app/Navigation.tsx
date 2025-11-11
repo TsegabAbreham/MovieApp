@@ -1,8 +1,9 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { Navbar, NavbarBrand, NavbarContent, NavbarItem, Link } from "@heroui/react";
-import { usePathname } from "next/navigation"; // ✅ fixed import
+import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from "@heroui/react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export const SearchIcon = ({
   size = 24,
@@ -45,46 +46,52 @@ export const SearchIcon = ({
 );
 
 export default function Navigation() {
-  const pathname = usePathname(); // ✅ this works now
+  const pathname = (usePathname() || "/").toLowerCase();
 
   return (
-    <Navbar shouldHideOnScroll className="bg-gray-900 shadow-md px-6 py-3 fixed w-full z-50">
+    // added relative so absolutely-positioned center menu can align to the navbar
+    <Navbar shouldHideOnScroll className="relative bg-gray-900 shadow-md px-6 py-3 fixed w-full z-50">
       <NavbarBrand>
-        <img src="/favicon.ico" alt="MovieApp Logo" className="h-8 w-8 mr-2 inline-block" />
+        {/* smaller, vertically-centered title, clickable to home */}
+        <Link href="/" className="flex items-center gap-3">
+          <span className="text-2xl md:text-3xl font-extrabold leading-tight">
+            <span className="text-indigo-400">TAMovies</span>
+          </span>
+        </Link>
       </NavbarBrand>
 
-      <NavbarContent justify="center" className="hidden sm:flex gap-6">
-        <NavbarItem isActive={pathname.toLowerCase() === "/movies"}>
+      {/* center menu: absolute-centered like Netflix/Prime (hidden on very small screens) */}
+      <NavbarContent
+        justify="center"
+        className="hidden sm:flex gap-6 absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
+      >
+        <NavbarItem isActive={pathname.startsWith("/Movies")}>
           <Link
             href="/Movies"
             className={`transition-colors ${
-              pathname.toLowerCase() === "/movies"
-                ? "text-white border-b-2 border-blue-500"
-                : "hover:text-blue-400"
+              pathname.startsWith("/Movies") ? "text-white border-b-2 border-blue-500" : "hover:text-blue-400"
             }`}
           >
             Movies
           </Link>
         </NavbarItem>
-        <NavbarItem isActive={pathname.toLowerCase() === "/tv"}>
+
+        <NavbarItem isActive={pathname.startsWith("/TV")}>
           <Link
             href="/TV"
             className={`transition-colors ${
-              pathname.toLowerCase() === "/tv"
-                ? "text-white border-b-2 border-blue-500"
-                : "hover:text-blue-400"
+              pathname.startsWith("/TV") ? "text-white border-b-2 border-blue-500" : "hover:text-blue-400"
             }`}
           >
             TV Shows
           </Link>
         </NavbarItem>
-        <NavbarItem isActive={pathname.toLowerCase() === "/livesports"}>
+
+        <NavbarItem isActive={pathname.startsWith("/Livesports")}>
           <Link
             href="/Livesports"
             className={`transition-colors ${
-              pathname.toLowerCase() === "/livesports"
-                ? "text-white border-b-2 border-blue-500"
-                : "hover:text-blue-400"
+              pathname.startsWith("/Livesports") ? "text-white border-b-2 border-blue-500" : "hover:text-blue-400"
             }`}
           >
             Live Sports
@@ -92,14 +99,13 @@ export default function Navigation() {
         </NavbarItem>
       </NavbarContent>
 
+      {/* right side: search / other actions */}
       <NavbarContent justify="end" className="flex items-center gap-4 ml-auto">
         <NavbarItem
           className={`hidden lg:flex ${
-            pathname.toLowerCase() === "/browse"
-              ? "text-white border-b-2 border-blue-500"
-              : "hover:text-blue-400"
+            pathname.startsWith("/browse") ? "text-white border-b-2 border-blue-500" : "hover:text-blue-400"
           }`}
-          isActive={pathname.toLowerCase() === "/browse"}
+          isActive={pathname.startsWith("/browse")}
         >
           <Link href="/browse" className="transition-colors text-white text-[16px] font-medium hover:text-blue-400">
             <SearchIcon size={20} />

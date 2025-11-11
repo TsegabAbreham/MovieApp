@@ -7,6 +7,7 @@ import { Card } from "@heroui/card";
 interface Certificate {
   rating: string;
   country: { code: string; name: string };
+  attributes?: string[];
 }
 
 interface Movie {
@@ -17,17 +18,15 @@ interface Movie {
   genres: string[];
   rating: number;
   plot: string;
-  usCertificates?: string;
+  usCertificates?: string | null;
 }
 
 export default function MovieGallery() {
   const router = useRouter();
 
-  // data + loading
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // derived
   const featuredCount = 5;
   const featuredMovies = useMemo(
     () => movies.slice(0, Math.min(featuredCount, movies.length)),
@@ -38,19 +37,14 @@ export default function MovieGallery() {
     [movies]
   );
 
-  // featured state
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const intervalRef = useRef<number | null>(null);
   const featuredTrackRef = useRef<HTMLDivElement | null>(null);
 
-  // drag support
   const dragRef = useRef({ pressing: false, startX: 0, startTranslate: 0 });
-
-  // refs for genre rows
   const genreRefs = useRef<{ [genre: string]: HTMLDivElement | null }>({});
 
-  // roving focus: row 0 = featured, row 1.. = genres
   const [focusRow, setFocusRow] = useState<number>(0);
   const [focusCol, setFocusCol] = useState<number>(0);
 
@@ -61,7 +55,8 @@ export default function MovieGallery() {
         const res = await fetch("https://api.imdbapi.dev/titles");
         const data = await res.json();
         if (!mounted) return;
-        const movieList: Movie[] = (data.titles || [])
+
+        const basicMovies: Movie[] = (data.titles || [])
           .filter((m: any) => m.type === "movie")
           .map((m: any) => ({
             id: m.id,
@@ -69,10 +64,30 @@ export default function MovieGallery() {
             year: m.startYear || 0,
             poster: m.primaryImage?.url || "/placeholder-poster.png",
             genres: m.genres || [],
-            rating: m.rating?.aggregateRating || 0,
+            rating: Number(m.rating?.aggregateRating ?? 0),
             plot: m.plot || "",
+            usCertificates: null,
           }));
-        setMovies(movieList);
+          
+          
+
+        // fetch certificates in parallel and attach US rating if present
+        const withCerts = await Promise.all(
+          basicMovies.map(async (mv) => {
+            try {
+              const r = await fetch(`https://api.imdbapi.dev/titles/${mv.id}/certificates`);
+              if (!r.ok) return mv;
+              const certData = await r.json();
+              const us = certData?.certificates?.find((c: Certificate) => c?.country?.code === "US")?.rating ?? null;
+              return { ...mv, usCertificates: us };
+            } catch (e) {
+              return mv;
+            }
+          })
+        );
+        if (!mounted) return;
+        setMovies(withCerts);
+        
       } catch (err) {
         console.error("Error fetching movies:", err);
       } finally {
@@ -85,7 +100,6 @@ export default function MovieGallery() {
     };
   }, []);
 
-  // auto-advance featured
   useEffect(() => {
     if (intervalRef.current) {
       window.clearInterval(intervalRef.current);
@@ -104,7 +118,6 @@ export default function MovieGallery() {
     };
   }, [isPaused, featuredMovies.length]);
 
-  // keyboard / remote navigation
   useEffect(() => {
     const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
     const onKey = (ev: KeyboardEvent) => {
@@ -156,22 +169,18 @@ export default function MovieGallery() {
     return () => window.removeEventListener("keydown", onKey);
   }, [focusRow, focusCol, featuredMovies, genres, movies, router]);
 
-  // when focus changes -> focus DOM node and center it inside container
   useEffect(() => {
     const selector = `[data-row="${focusRow}"][data-col="${focusCol}"]`;
     const el = document.querySelector<HTMLElement>(selector);
     if (!el) return;
 
-    // focus without letting browser scroll automatically
     el.focus({ preventScroll: true });
 
     if (focusRow === 0) {
-      // sync featured index
       setFeaturedIndex(Math.max(0, Math.min(focusCol, Math.max(0, featuredMovies.length - 1))));
       return;
     }
 
-    // center the focused element inside the genre container
     const genreIndex = focusRow - 1;
     const genreName = genres[genreIndex];
     const container = genreRefs.current[genreName];
@@ -180,16 +189,13 @@ export default function MovieGallery() {
     const containerRect = container.getBoundingClientRect();
     const targetRect = el.getBoundingClientRect();
 
-    // compute where to scroll: current scroll + (targetLeft - containerLeft) - centerOffset
     const relativeLeft = container.scrollLeft + (targetRect.left - containerRect.left);
     const centerOffset = (container.clientWidth - targetRect.width) / 2;
     const desiredScrollLeft = Math.max(0, relativeLeft - centerOffset);
 
     container.scrollTo({ left: Math.round(desiredScrollLeft), behavior: "smooth" });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusRow, focusCol]);
 
-  // initial focus after load
   useEffect(() => {
     if (movies.length === 0) return;
     if (featuredMovies.length > 0) {
@@ -199,10 +205,8 @@ export default function MovieGallery() {
       setFocusRow(1);
       setFocusCol(0);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [movies]);
 
-  // featured controls
   function nextFeatured() {
     if (featuredMovies.length === 0) return;
     setFeaturedIndex((i) => (i + 1) % featuredMovies.length);
@@ -216,7 +220,6 @@ export default function MovieGallery() {
     setFocusCol((c) => (c - 1 + featuredMovies.length) % featuredMovies.length);
   }
 
-  // featured drag handlers
   function onFeaturedPointerDown(e: React.PointerEvent) {
     if (!featuredTrackRef.current) return;
     dragRef.current.pressing = true;
@@ -248,7 +251,6 @@ export default function MovieGallery() {
     setIsPaused(false);
   }
 
-  // scroll helper for arrow buttons
   const scrollGenre = (genre: string, direction: "left" | "right") => {
     const container = genreRefs.current[genre];
     if (!container) return;
@@ -272,7 +274,6 @@ export default function MovieGallery() {
         .focus-ring { box-shadow: 0 0 0 4px rgba(255,255,255,0.12); transform: translateZ(0); }
       `}</style>
 
-      {/* Featured */}
       {featuredMovies.length > 0 && (
         <section>
           <h2 className="text-2xl font-semibold mb-4">Featured</h2>
@@ -310,6 +311,7 @@ export default function MovieGallery() {
                         <div className="mt-3 flex items-center gap-3">
                           <div className="px-3 py-1 bg-black/50 rounded text-sm">{m.year}</div>
                           <div className="px-3 py-1 bg-black/50 rounded text-sm">★ {m.rating.toFixed(1)}</div>
+                          {m.usCertificates && <div className="px-3 py-1 bg-black/50 rounded text-sm">{m.usCertificates}</div>}
                         </div>
                       </div>
                     </div>
@@ -330,10 +332,9 @@ export default function MovieGallery() {
         </section>
       )}
 
-      {/* Genre rows */}
       {genres.map((genre, gi) => {
         const genreMovies = movies.filter((m) => m.genres.includes(genre));
-        const rowNumber = gi + 1; // row 1..
+        const rowNumber = gi + 1;
         return (
           <section key={genre}>
             <h2 className="text-2xl font-semibold mb-4">{genre}</h2>
@@ -364,9 +365,7 @@ export default function MovieGallery() {
                           <img src={m.poster} alt={m.title} className="w-full h-full object-cover rounded-lg" />
                           <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 text-xs rounded font-semibold">★ {m.rating.toFixed(1)}</div>
                           <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs rounded font-semibold">{m.year}</div>
-                        </div>
-                        <div className="mt-2 flex flex-col px-2 pb-3">
-                          <div className="font-semibold text-sm truncate">{m.title}</div>
+                          <div className="absolute top-2 left-2 bg-black/70 px-2 py-1 text-xs rounded font-semibold">{m.usCertificates}</div>
                         </div>
                       </Card>
                     </div>

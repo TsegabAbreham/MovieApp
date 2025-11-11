@@ -172,6 +172,7 @@ export default function MovieDetail() {
               <div className="mt-2 text-sm text-gray-300">
                 <p><strong>Rating:</strong> ★ {movie.rating.toFixed(1)}{movie.usRating ? ` | US: ${movie.usRating}` : ""}</p>
                 <p className="mt-1"><strong>Genres:</strong> {movie.genres.join(", ")}</p>
+                <p className="mt-1"><strong>Genres:</strong> {movie.usRating}</p>
                 <p className="mt-3">{movie.plot}</p>
               </div>
               {errorMsg && <p className="text-red-400 mt-3 text-sm">{errorMsg}</p>}
@@ -214,8 +215,6 @@ export default function MovieDetail() {
                   </div>
                 )}
               </div>
-
-
             </div>
           </aside>
         </div>

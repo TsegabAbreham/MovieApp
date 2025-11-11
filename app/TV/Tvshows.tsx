@@ -4,6 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@heroui/card";
 
+interface Certificate {
+  rating: string;
+  country: { code: string; name: string };
+  attributes?: string[];
+}
+
 interface Movie {
   id: string;
   title: string;
@@ -12,6 +18,7 @@ interface Movie {
   genres: string[];
   rating: number;
   plot: string;
+  usCertificate?: string | null;
 }
 
 export default function TVshowGallery() {
@@ -37,7 +44,7 @@ export default function TVshowGallery() {
   const [focusRow, setFocusRow] = useState<number>(0);
   const [focusCol, setFocusCol] = useState<number>(0);
 
-  // ----- fetch movies (runs once) -----
+  // ----- fetch shows (runs once) -----
   useEffect(() => {
     let mounted = true;
     const fetchMovies = async () => {
@@ -45,7 +52,9 @@ export default function TVshowGallery() {
         const res = await fetch("https://api.imdbapi.dev/titles");
         const data = await res.json();
         if (!mounted) return;
-        const movieList: Movie[] = (data.titles || [])
+
+        // build base list of TV shows
+        const basicShows: Movie[] = (data.titles || [])
           .filter((m: any) => m.type === "tvSeries")
           .map((m: any) => ({
             id: m.id,
@@ -53,10 +62,29 @@ export default function TVshowGallery() {
             year: m.startYear || 0,
             poster: m.primaryImage?.url || "/placeholder-poster.png",
             genres: m.genres || [],
-            rating: m.rating?.aggregateRating || 0,
+            rating: Number(m.rating?.aggregateRating ?? 0),
             plot: m.plot || "",
+            usCertificate: null,
           }));
-        setMovies(movieList);
+
+        // fetch certificates in parallel and attach US certificate (if any)
+        const withCerts = await Promise.all(
+          basicShows.map(async (sh) => {
+            try {
+              const r = await fetch(`https://api.imdbapi.dev/titles/${sh.id}/certificates`);
+              if (!r.ok) return sh;
+              const certData = await r.json();
+              const us = certData?.certificates?.find((c: Certificate) => c?.country?.code === "US")?.rating ?? null;
+              return { ...sh, usCertificate: us };
+            } catch (e) {
+              // if certificate fetch fails, return show without certificate
+              return sh;
+            }
+          })
+        );
+
+        if (!mounted) return;
+        setMovies(withCerts);
       } catch (err) {
         console.error("Error fetching shows:", err);
       } finally {
@@ -64,7 +92,9 @@ export default function TVshowGallery() {
       }
     };
     fetchMovies();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Derived arrays (safe to compute during render)
@@ -292,6 +322,7 @@ export default function TVshowGallery() {
                         <div className="mt-3 flex items-center gap-3">
                           <div className="px-3 py-1 bg-black/50 rounded text-sm">{m.year}</div>
                           <div className="px-3 py-1 bg-black/50 rounded text-sm">★ {m.rating.toFixed(1)}</div>
+                          <div className="px-3 py-1 bg-black/50 rounded text-sm">{m.usCertificate}</div>
                         </div>
                       </div>
                     </div>
@@ -321,10 +352,7 @@ export default function TVshowGallery() {
             <h2 className="text-2xl font-semibold mb-4">{genre}</h2>
 
             <div className="relative">
-              <button onClick={() => {
-                scrollGenreRow(genreRefs.current, genre);
-                scrollGenre(genre, "left");
-              }} className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white px-3 py-2 rounded">◀</button>
+              <button onClick={() => scrollGenre(genre, "left")} className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white px-3 py-2 rounded">◀</button>
 
               <div ref={(el) => {(genreRefs.current[genre] = el)}} className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth py-2">
                 {genreMovies.map((movie, colIdx) => {
@@ -344,10 +372,7 @@ export default function TVshowGallery() {
                         <img src={movie.poster} alt={movie.title} className="w-full h-full object-cover rounded-lg" />
                         <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 text-xs rounded font-semibold">★ {movie.rating.toFixed(1)}</div>
                         <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs rounded font-semibold">{movie.year}</div>
-                      </div>
-
-                      <div className="mt-2 flex flex-col px-2 pb-3">
-                        <div className="font-semibold text-sm truncate">{movie.title}</div>
+                        <div className="absolute top-2 left-2 bg-black/70 px-2 py-1 text-xs rounded font-semibold">{movie.usCertificate}</div>
                       </div>
                     </Card>
                   );
@@ -368,10 +393,5 @@ export default function TVshowGallery() {
     if (!container) return;
     const scrollAmount = container.clientWidth * 0.8;
     container.scrollBy({ left: direction === "right" ? scrollAmount : -scrollAmount, behavior: "smooth" });
-  }
-
-  // fallback helper (not required, placeholder)
-  function scrollGenreRow(refs: { [g: string]: HTMLDivElement | null }, genre: string) {
-    // no-op; kept for safety
   }
 }
