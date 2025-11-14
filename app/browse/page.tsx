@@ -13,6 +13,7 @@ interface Movie {
   genres: string[];
   rating: number;
   plot: string;
+  kind?: "movie" | "tv" | "other";
 }
 
 const PLACEHOLDER = "/placeholder-poster.png";
@@ -23,6 +24,11 @@ export default function BrowsePage() {
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  // focus/index state for remote navigation
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [cols, setCols] = useState<number>(4); // grid columns used for up/down navigation
+
   // Read initial ?q= from URL on mount (client-side only)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -30,6 +36,33 @@ export default function BrowsePage() {
     const initial = params.get("q") ?? "";
     setQuery(initial);
   }, []);
+
+  // adapt columns based on window size to match tailwind classes used in layout
+  useEffect(() => {
+    const calcCols = () => {
+      if (typeof window === "undefined") return;
+      const w = window.innerWidth;
+      if (w >= 1024) setCols(4); // md:grid-cols-4
+      else if (w >= 640) setCols(3); // sm:grid-cols-3
+      else setCols(2); // grid-cols-2
+    };
+    calcCols();
+    window.addEventListener("resize", calcCols);
+    return () => window.removeEventListener("resize", calcCols);
+  }, []);
+
+  // heuristic to detect TV vs Movie from API item
+  const detectKind = (it: any) => {
+    const low = (s?: string) => (typeof s === "string" ? s.toLowerCase() : "");
+    if (/tv|series|episode|show/.test(low(it?.titleType) + " " + low(it?.type) + " " + low(it?.programType) + " " + low(it?.kind))) {
+      return "tv";
+    }
+    // some APIs expose "titleType": { "text": "TV series" }
+    if (it?.titleType?.text && /tv|series|episode|show/.test(it.titleType.text.toLowerCase())) return "tv";
+    // fallback: if genres explicitly say 'TV' or 'Series'
+    if (Array.isArray(it?.genres) && it.genres.some((g: string) => /tv|series/i.test(g))) return "tv";
+    return "movie";
+  };
 
   // Fetch when query changes (debounce optional)
   useEffect(() => {
@@ -96,20 +129,12 @@ export default function BrowsePage() {
 
           const genres =
             (Array.isArray(it.genres) && it.genres) ||
-            (typeof it.genre === "string"
-              ? it.genre.split(",").map((s: string) => s.trim())
-              : []) ||
+            (typeof it.genre === "string" ? it.genre.split(",").map((s: string) => s.trim()) : []) ||
             [];
 
-          const rating =
-            Number(it.rating?.aggregateRating || it.imdbRating || it.rating) || 0;
+          const rating = Number(it.rating?.aggregateRating || it.imdbRating || it.rating) || 0;
 
-          const plot =
-            it.plot ||
-            it.summary ||
-            it.description ||
-            it.plotSummary ||
-            "";
+          const plot = it.plot || it.summary || it.description || it.plotSummary || "";
 
           return {
             id: String(id),
@@ -119,10 +144,14 @@ export default function BrowsePage() {
             genres,
             rating: Number(rating) || 0,
             plot: String(plot),
+            kind: detectKind(it),
           } as Movie;
         });
 
         setMovies(mapped);
+        // reset focus refs when new results come in
+        itemRefs.current = [];
+        setFocusedIndex(mapped.length > 0 ? 0 : null);
       } catch (err: any) {
         if (err.name === "AbortError") {
           // ignored
@@ -158,6 +187,72 @@ export default function BrowsePage() {
 
   const featured = useMemo(() => movies.slice(0, Math.min(5, movies.length)), [movies]);
 
+  // Remote / keyboard navigation
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      const tag = (document.activeElement?.tagName || "").toLowerCase();
+      // avoid interfering if user is typing in input or textarea
+      if (tag === "input" || tag === "textarea") return;
+
+      if (movies.length === 0) return;
+
+      const maxIndex = movies.length - 1;
+      let idx = focusedIndex ?? 0;
+
+      if (ev.key === "ArrowRight") {
+        ev.preventDefault();
+        idx = Math.min(maxIndex, idx + 1);
+        setFocusedIndex(idx);
+      } else if (ev.key === "ArrowLeft") {
+        ev.preventDefault();
+        idx = Math.max(0, idx - 1);
+        setFocusedIndex(idx);
+      } else if (ev.key === "ArrowDown") {
+        ev.preventDefault();
+        idx = Math.min(maxIndex, idx + cols);
+        setFocusedIndex(idx);
+      } else if (ev.key === "ArrowUp") {
+        ev.preventDefault();
+        idx = Math.max(0, idx - cols);
+        setFocusedIndex(idx);
+      } else if (ev.key === "Home") {
+        ev.preventDefault();
+        setFocusedIndex(0);
+      } else if (ev.key === "End") {
+        ev.preventDefault();
+        setFocusedIndex(maxIndex);
+      } else if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        const movie = movies[idx];
+        if (!movie) return;
+        if (movie.kind === "tv") window.location.href = `/TV/${movie.id}`;
+        else window.location.href = `/Movies/${movie.id}`;
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focusedIndex, movies, cols]);
+
+  // when focusedIndex changes, sync DOM focus + scroll into view
+  useEffect(() => {
+    if (focusedIndex == null) return;
+    const el = itemRefs.current[focusedIndex];
+    if (!el) return;
+    try {
+      el.focus({ preventScroll: true });
+    } catch {}
+    // smooth scroll into view in grid container
+    el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [focusedIndex]);
+
+  // helper to navigate when clicking a card
+  const goTo = (movie: Movie) => {
+    if (!movie) return;
+    if (movie.kind === "tv") window.location.href = `/TV/${movie.id}`;
+    else window.location.href = `/Movies/${movie.id}`;
+  };
+
   return (
     <>
       <Navigation />
@@ -176,7 +271,7 @@ export default function BrowsePage() {
                 base: "flex-1",
                 mainWrapper: "h-[56px] sm:h-[64px] shadow-lg",
                 inputWrapper:
-                  "flex items-center h-full bg-[#1f2937] border border-gray-700 rounded-l-md px-4 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all duration-200",
+                  "flex items-center h-full bg-[#11131a] border border-gray-700 rounded-l-md px-4 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all duration-200",
                 input:
                   "bg-transparent text-white placeholder-gray-400 h-full leading-none py-0 px-0 outline-none text-sm sm:text-base",
               }}
@@ -202,9 +297,9 @@ export default function BrowsePage() {
                   <div className="flex gap-4 overflow-x-auto py-2">
                     {featured.map((m) => (
                       <div key={m.id} className="flex-shrink-0 w-[260px]">
-                        <Card className="overflow-hidden rounded-lg cursor-pointer transform hover:scale-[1.02] transition-transform">
+                        <Card className="overflow-hidden rounded-lg cursor-pointer transform hover:scale-[1.02] transition-transform" onClick={() => goTo(m)}>
                           <div className="relative w-full h-[150px]">
-                            <img src={m.poster} alt={m.title} className="w-full h-full object-cover" />
+                            <img loading="lazy" src={m.poster} alt={m.title} className="w-full h-full object-cover" />
                           </div>
                           <div className="p-3">
                             <div className="font-semibold truncate">{m.title}</div>
@@ -220,28 +315,32 @@ export default function BrowsePage() {
 
               <section>
                 <h2 className="text-2xl font-semibold mb-4">Results</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
-                  {movies.map((m) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6" role="grid" aria-label="search results">
+                  {movies.map((m, i) => (
                     <div key={m.id}>
                       <Card
                         isPressable
                         shadow="lg"
-                        onPress={() => {
-                          // simple navigation without next/router to avoid hooks
-                          if (typeof window !== "undefined") {
-                            window.location.href = `/Movies/${m.id}`;
-                          }
-                        }}
-                        className="overflow-hidden rounded-lg transform hover:scale-105 hover:shadow-2xl transition-transform"
+                        onPress={() => goTo(m)}
+                        className="overflow-hidden rounded-lg transform hover:scale-105 hover:shadow-2xl transition-transform focus-within:scale-105"
                       >
-                        <div className="relative w-full h-[260px]">
-                          <img src={m.poster} alt={m.title} className="w-full h-full object-cover" />
+                        <div
+                          // each item gets a wrapper that is focusable and wired for remote navigation
+                          ref={(el) => {(itemRefs.current[i] = el)}}
+                          tabIndex={0}
+                          role="button"
+                          data-index={i}
+                          onFocus={() => setFocusedIndex(i)}
+                          onClick={() => goTo(m)}
+                          className={`relative w-full h-[260px] outline-none focus:ring-4 focus:ring-white/20 transition-all rounded-lg ${focusedIndex === i ? "ring-2 ring-white/20 scale-[1.01]" : ""}`}
+                        >
+                          <img loading="lazy" src={m.poster} alt={m.title} className="w-full h-full object-cover rounded-lg" />
                           <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 text-xs rounded font-semibold">★ {m.rating?.toFixed?.(1) ?? "–"}</div>
                           <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs rounded font-semibold">{m.year || "—"}</div>
-                        </div>
-                        <div className="mt-2 flex flex-col px-3 pb-3">
-                          <div className="font-semibold text-sm truncate">{m.title}</div>
-                          <div className="text-xs text-gray-300 mt-1 line-clamp-2">{m.genres.join(", ")}</div>
+                          <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                            <div className="font-semibold text-sm truncate">{m.title}</div>
+                            <div className="text-xs text-gray-300 mt-1 line-clamp-2">{m.genres.join(", ")}</div>
+                          </div>
                         </div>
                       </Card>
                     </div>

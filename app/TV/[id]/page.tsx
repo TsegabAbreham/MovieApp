@@ -126,31 +126,96 @@ export default function TVShowDetail() {
         const ac = new AbortController();
         fetchAbortRef.current = ac;
 
-        const url = `https://api.imdbapi.dev/titles/${id}/episodes?season=${encodeURIComponent(selectedSeason)}`;
-        const res = await fetch(url, { signal: ac.signal });
+        // Use the API's pageToken-based pagination correctly.
+        // The endpoint supports pageSize (1..50) and returns a next page token (e.g. "nextPageToken").
+        const pageSize = 50; // max supported by the API
+        const gatheredMap = new Map<string, any>();
 
-        if (!res.ok) {
-          if (res.status === 429) {
-            setErrorMsg("Rate limit reached while fetching episodes. Wait a bit and try again.");
-            setEpisodesBySeason((prev) => ({ ...prev, [selectedSeason]: [] }));
-            return;
-          } else {
+        let pageToken: string | null = null;
+        let keepGoing = true;
+
+        while (keepGoing) {
+          if (ac.signal.aborted) break;
+
+          const tokenParam: string = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+          const url = `https://api.imdbapi.dev/titles/${id}/episodes?season=${encodeURIComponent(selectedSeason)}&pageSize=${pageSize}${tokenParam}`;
+
+          const res = await fetch(url, { signal: ac.signal });
+
+          if (!res.ok) {
+            // handle API-specific errors
+            if (res.status === 429) {
+              setErrorMsg("Rate limit reached while fetching episodes. Some episodes may be missing. Try again later.");
+              break;
+            }
+
+            // try to read JSON error body for better messages
+            let errBody: any = null;
+            try { errBody = await res.json(); } catch (e) { /* ignore */ }
+
+            // special-case: server decoded an invalid page token
+            if (res.status === 500 && errBody && /decode page token/i.test(String(errBody.message || ""))) {
+              setErrorMsg("Invalid paging token received — stopping pagination.");
+              break;
+            }
+
             const txt = await res.text().catch(() => "");
             throw new Error(`Failed to fetch episodes (${res.status}): ${txt}`);
           }
+
+          const json = await res.json();
+
+          // extract episodes array from known shapes
+          let pageEpisodes: any[] = [];
+          if (Array.isArray(json.episodes)) pageEpisodes = json.episodes;
+          else if (Array.isArray(json)) pageEpisodes = json;
+          else {
+            // try to find an array in the response
+            const arr = Object.values(json).find((v) => Array.isArray(v));
+            if (Array.isArray(arr)) pageEpisodes = arr as any[];
+          }
+
+          // append unique episodes by id
+          for (const e of pageEpisodes) {
+            const eid = e.id || e.episodeId || `${selectedSeason}-${e.episodeNumber}`;
+            if (!gatheredMap.has(eid)) gatheredMap.set(eid, e);
+          }
+
+          // get next token from response (try several common names)
+          const nextToken = json.nextPageToken || json.pageToken || json.next_token || json.nextPage || (json.pagination && json.pagination.nextPageToken) || null;
+
+          if (nextToken) {
+            pageToken = String(nextToken);
+            // loop to fetch next page
+            continue;
+          }
+
+          // some APIs may include pagination info
+          if (json.pagination && typeof json.pagination === "object") {
+            const cur = Number(json.pagination.page || 0);
+            const total = Number(json.pagination.totalPages || json.pagination.total_pages || 0);
+            if (total > 0 && cur > 0 && cur < total) {
+              pageToken = String(cur + 1); // in case API expects page numbers (fallback)
+              continue;
+            }
+          }
+
+          // otherwise stop
+          keepGoing = false;
         }
 
-        const json = await res.json();
-        const episodesRaw = Array.isArray(json.episodes) ? json.episodes : [];
-
-        const epList: Episode[] = episodesRaw.map((e: any) => ({
-          id: e.id,
-          title: e.title || `Episode ${e.episodeNumber}`,
-          episodeNumber: Number(e.episodeNumber),
-          season: e.season ?? selectedSeason,
-          plot: e.plot ?? "",
-          image: e.primaryImage?.url ?? "/placeholder-poster.png",
-        }));
+        // convert gatheredMap to Episode[] and sort by episodeNumber when possible
+        const gathered = Array.from(gatheredMap.values());
+        const epList: Episode[] = gathered
+          .map((e: any, idx: number) => ({
+            id: e.id || e.episodeId || `${selectedSeason}-${idx}`,
+            title: e.title || `Episode ${e.episodeNumber || idx + 1}`,
+            episodeNumber: Number(e.episodeNumber || e.epNumber || idx + 1),
+            season: String(e.season ?? selectedSeason),
+            plot: e.plot ?? e.description ?? "",
+            image: e.primaryImage?.url ?? e.image?.url ?? "/placeholder-poster.png",
+          }))
+          .sort((a, b) => (Number.isFinite(a.episodeNumber) && Number.isFinite(b.episodeNumber) ? a.episodeNumber - b.episodeNumber : 0));
 
         setEpisodesBySeason((prev) => ({ ...prev, [selectedSeason]: epList }));
         setSelectedEpisode((prev) => (prev && prev.season === selectedSeason ? prev : epList[0] ?? null));

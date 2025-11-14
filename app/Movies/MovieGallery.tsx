@@ -23,11 +23,10 @@ interface Movie {
 
 export default function MovieGallery() {
   const router = useRouter();
-
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const featuredCount = 5;
+  const featuredCount = 6;
   const featuredMovies = useMemo(
     () => movies.slice(0, Math.min(featuredCount, movies.length)),
     [movies]
@@ -41,13 +40,15 @@ export default function MovieGallery() {
   const [isPaused, setIsPaused] = useState(false);
   const intervalRef = useRef<number | null>(null);
   const featuredTrackRef = useRef<HTMLDivElement | null>(null);
+  const backgroundRef = useRef<HTMLDivElement | null>(null);
 
   const dragRef = useRef({ pressing: false, startX: 0, startTranslate: 0 });
   const genreRefs = useRef<{ [genre: string]: HTMLDivElement | null }>({});
 
-  const [focusRow, setFocusRow] = useState<number>(0);
+  const [focusRow, setFocusRow] = useState<number>(0); // 0 = featured, 1.. = genres
   const [focusCol, setFocusCol] = useState<number>(0);
 
+  // --- fetch movies (same behavior) ---
   useEffect(() => {
     let mounted = true;
     const fetchMovies = async () => {
@@ -68,10 +69,7 @@ export default function MovieGallery() {
             plot: m.plot || "",
             usCertificates: null,
           }));
-          
-          
 
-        // fetch certificates in parallel and attach US rating if present
         const withCerts = await Promise.all(
           basicMovies.map(async (mv) => {
             try {
@@ -87,7 +85,6 @@ export default function MovieGallery() {
         );
         if (!mounted) return;
         setMovies(withCerts);
-        
       } catch (err) {
         console.error("Error fetching movies:", err);
       } finally {
@@ -100,6 +97,7 @@ export default function MovieGallery() {
     };
   }, []);
 
+  // --- auto-advance featured with pause handling ---
   useEffect(() => {
     if (intervalRef.current) {
       window.clearInterval(intervalRef.current);
@@ -118,12 +116,14 @@ export default function MovieGallery() {
     };
   }, [isPaused, featuredMovies.length]);
 
+  // --- keyboard navigation (remote friendly) ---
   useEffect(() => {
     const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
     const onKey = (ev: KeyboardEvent) => {
       const tag = (document.activeElement?.tagName || "").toLowerCase();
       if (tag === "input" || tag === "textarea") return;
 
+      // allow media remote arrow keys (some remotes fire same events)
       if (ev.key === "ArrowRight") {
         ev.preventDefault();
         if (focusRow === 0 && featuredMovies.length > 0) {
@@ -162,6 +162,17 @@ export default function MovieGallery() {
           const item = items[focusCol];
           if (item) router.push(`/Movies/${item.id}`);
         }
+      } else if (ev.key === "Home") {
+        ev.preventDefault();
+        setFocusCol(0);
+      } else if (ev.key === "End") {
+        ev.preventDefault();
+        if (focusRow === 0) setFocusCol(Math.max(0, featuredMovies.length - 1));
+        else {
+          const gi = Math.max(0, focusRow - 1);
+          const items = movies.filter((m) => m.genres.includes(genres[gi] || ""));
+          setFocusCol(Math.max(0, items.length - 1));
+        }
       }
     };
 
@@ -169,6 +180,7 @@ export default function MovieGallery() {
     return () => window.removeEventListener("keydown", onKey);
   }, [focusRow, focusCol, featuredMovies, genres, movies, router]);
 
+  // --- focus scrolling for items & rows ---
   useEffect(() => {
     const selector = `[data-row="${focusRow}"][data-col="${focusCol}"]`;
     const el = document.querySelector<HTMLElement>(selector);
@@ -186,6 +198,7 @@ export default function MovieGallery() {
     const container = genreRefs.current[genreName];
     if (!container) return;
 
+    // smooth center-scroll the focused item
     const containerRect = container.getBoundingClientRect();
     const targetRect = el.getBoundingClientRect();
 
@@ -194,7 +207,7 @@ export default function MovieGallery() {
     const desiredScrollLeft = Math.max(0, relativeLeft - centerOffset);
 
     container.scrollTo({ left: Math.round(desiredScrollLeft), behavior: "smooth" });
-  }, [focusRow, focusCol]);
+  }, [focusRow, focusCol, genres, featuredMovies]);
 
   useEffect(() => {
     if (movies.length === 0) return;
@@ -207,6 +220,7 @@ export default function MovieGallery() {
     }
   }, [movies]);
 
+  // --- drag handlers for featured with better snapping ---
   function nextFeatured() {
     if (featuredMovies.length === 0) return;
     setFeaturedIndex((i) => (i + 1) % featuredMovies.length);
@@ -239,10 +253,10 @@ export default function MovieGallery() {
     dragRef.current.pressing = false;
     try { (e.target as Element).releasePointerCapture?.(e.pointerId); } catch {}
     const width = featuredTrackRef.current.clientWidth;
-    const transform = getComputedStyle(featuredTrackRef.current).transform;
+    const computed = getComputedStyle(featuredTrackRef.current).transform;
     let left = 0;
     try {
-      const mat = transform.match(/matrix.*\((.+)\)/)?.[1]?.split(", ");
+      const mat = computed.match(/matrix.*\((.+)\)/)?.[1]?.split(", ");
       left = Math.abs(Number(mat ? mat[4] : 0));
     } catch {}
     const idx = Math.round(left / width);
@@ -254,9 +268,21 @@ export default function MovieGallery() {
   const scrollGenre = (genre: string, direction: "left" | "right") => {
     const container = genreRefs.current[genre];
     if (!container) return;
-    const scrollAmount = container.clientWidth * 0.8;
+    const scrollAmount = container.clientWidth * 0.85;
     container.scrollBy({ left: direction === "right" ? scrollAmount : -scrollAmount, behavior: "smooth" });
   };
+
+  // update blurred background when featured changes
+  useEffect(() => {
+    const current = featuredMovies[featuredIndex];
+    if (!backgroundRef.current) return;
+    if (current) {
+      backgroundRef.current.style.backgroundImage = `url(${current.poster})`;
+      backgroundRef.current.style.opacity = "1";
+    } else {
+      backgroundRef.current.style.opacity = "0";
+    }
+  }, [featuredIndex, featuredMovies]);
 
   if (loading) {
     return (
@@ -267,21 +293,40 @@ export default function MovieGallery() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white px-6 py-8 space-y-12">
+    <div className="min-h-screen bg-gray-900 text-white px-6 py-8 space-y-12 relative overflow-x-hidden">
       <style jsx>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .focus-ring { box-shadow: 0 0 0 4px rgba(255,255,255,0.12); transform: translateZ(0); }
+
+        /* Featured full-bleed background blur */
+        .bg-blur {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          background-position: center;
+          background-size: cover;
+          filter: blur(18px) saturate(70%);
+          transform: scale(1.05);
+          transition: opacity 400ms ease;
+          opacity: 0;
+        }
+
+        /* scroll snap for rows */
+        .row-scroll { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+        .row-item { scroll-snap-align: center; }
       `}</style>
 
-      {featuredMovies.length > 0 && (
-        <section>
-          <h2 className="text-2xl font-semibold mb-4">Featured</h2>
+      <div ref={backgroundRef} className="bg-blur" aria-hidden />
 
-          <div className="relative overflow-hidden rounded-lg" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
+      {featuredMovies.length > 0 && (
+        <section className="relative z-10">
+          <h2 className="text-3xl font-semibold mb-4">Featured</h2>
+
+          <div className="relative rounded-lg overflow-hidden" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
             <div
               ref={featuredTrackRef}
-              className="flex transition-transform duration-500 ease-out"
+              className="flex transition-transform duration-700 ease-out"
               style={{
                 width: `${featuredMovies.length * 100}%`,
                 transform: `translateX(-${featuredIndex * (100 / featuredMovies.length)}%)`,
@@ -289,11 +334,12 @@ export default function MovieGallery() {
               onPointerDown={onFeaturedPointerDown}
               onPointerMove={onFeaturedPointerMove}
               onPointerUp={onFeaturedPointerUp}
+              onPointerCancel={onFeaturedPointerUp}
             >
               {featuredMovies.map((m, idx) => {
                 const focused = focusRow === 0 && focusCol === idx;
                 return (
-                  <div key={m.id} className="flex-shrink-0 w-full px-2 md:px-4 py-6" style={{ width: `${100 / featuredMovies.length}%` }}>
+                  <div key={m.id} className="flex-shrink-0 w-full px-2 md:px-6 py-6" style={{ width: `${100 / featuredMovies.length}%` }}>
                     <div
                       role="button"
                       tabIndex={0}
@@ -301,18 +347,26 @@ export default function MovieGallery() {
                       data-col={idx}
                       onClick={() => { setFocusRow(0); setFocusCol(idx); router.push(`/Movies/${m.id}`); }}
                       onFocus={() => { setFocusRow(0); setFocusCol(idx); }}
-                      className={`relative rounded-lg overflow-hidden cursor-pointer shadow-xl hover:scale-[1.01] transition-transform duration-200 ${focused ? "focus-ring" : ""}`}
+                      className={`relative rounded-lg overflow-hidden cursor-pointer shadow-2xl hover:scale-[1.015] transition-transform duration-300 ${focused ? "focus-ring" : ""}`}
                     >
-                      <img src={m.poster} alt={m.title} className="w-full h-[380px] md:h-[440px] object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent pointer-events-none" />
-                      <div className="absolute left-6 bottom-6 text-left">
-                        <h3 className="text-2xl md:text-3xl font-bold">{m.title}</h3>
-                        <p className="text-sm text-gray-300 mt-1 max-w-[60ch] line-clamp-2">{m.plot}</p>
-                        <div className="mt-3 flex items-center gap-3">
-                          <div className="px-3 py-1 bg-black/50 rounded text-sm">{m.year}</div>
-                          <div className="px-3 py-1 bg-black/50 rounded text-sm">★ {m.rating.toFixed(1)}</div>
-                          {m.usCertificates && <div className="px-3 py-1 bg-black/50 rounded text-sm">{m.usCertificates}</div>}
+                      <img src={m.poster} alt={m.title} className="w-full h-[420px] md:h-[520px] object-cover" />
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
+
+                      <div className="absolute left-6 bottom-6 text-left z-10">
+                        <h3 className="text-2xl md:text-4xl font-bold leading-tight">{m.title}</h3>
+                        <p className="text-sm md:text-base text-gray-300 mt-2 max-w-[60ch] line-clamp-3">{m.plot}</p>
+                        <div className="mt-4 flex items-center gap-3">
+                          <div className="px-3 py-1 bg-white/6 rounded text-sm">{m.year}</div>
+                          <div className="px-3 py-1 bg-white/6 rounded text-sm">★ {m.rating.toFixed(1)}</div>
+                          {m.usCertificates && <div className="px-3 py-1 bg-white/6 rounded text-sm">{m.usCertificates}</div>}
                         </div>
+                      </div>
+
+                      {/* subtle action row */}
+                      <div className="absolute right-6 bottom-6 z-10 flex gap-2">
+                        <button onClick={() => router.push(`/Movies/${m.id}`)} className="bg-white text-black px-4 py-2 rounded-md font-semibold">Play</button>
+                        <button className="bg-black/40 px-4 py-2 rounded-md border border-white/10">More</button>
                       </div>
                     </div>
                   </div>
@@ -320,10 +374,10 @@ export default function MovieGallery() {
               })}
             </div>
 
-            <button onClick={prevFeatured} aria-label="Previous featured" className="absolute left-5 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/60 text-white px-3 py-2 rounded">◀</button>
-            <button onClick={nextFeatured} aria-label="Next featured" className="absolute right-5 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/60 text-white px-3 py-2 rounded">▶</button>
+            <button onClick={prevFeatured} aria-label="Previous featured" className="absolute left-5 top-1/2 -translate-y-1/2 z-20 bg-black/50 hover:bg-black/70 text-white px-3 py-2 rounded">◀</button>
+            <button onClick={nextFeatured} aria-label="Next featured" className="absolute right-5 top-1/2 -translate-y-1/2 z-20 bg-black/50 hover:bg-black/70 text-white px-3 py-2 rounded">▶</button>
 
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-10 z-20 flex gap-2">
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-8 z-20 flex gap-2">
               {featuredMovies.map((_, i) => (
                 <button key={i} onClick={() => { setFeaturedIndex(i); setFocusRow(0); setFocusCol(i); }} className={`w-3 h-3 rounded-full ${i === featuredIndex ? "bg-white" : "bg-white/30"}`} />
               ))}
@@ -336,13 +390,17 @@ export default function MovieGallery() {
         const genreMovies = movies.filter((m) => m.genres.includes(genre));
         const rowNumber = gi + 1;
         return (
-          <section key={genre}>
-            <h2 className="text-2xl font-semibold mb-4">{genre}</h2>
+          <section key={genre} className="relative z-10">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-2xl font-semibold">{genre}</h2>
+              <div className="hidden md:flex gap-2 items-center">
+                <button onClick={() => scrollGenre(genre, "left")} className="bg-black/40 hover:bg-black/60 px-3 py-2 rounded">◀</button>
+                <button onClick={() => scrollGenre(genre, "right")} className="bg-black/40 hover:bg-black/60 px-3 py-2 rounded">▶</button>
+              </div>
+            </div>
 
             <div className="relative">
-              <button onClick={() => scrollGenre(genre, "left")} className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white px-3 py-2 rounded">◀</button>
-
-              <div ref={(el) => {(genreRefs.current[genre] = el)}} className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth py-2">
+              <div ref={(el) => {(genreRefs.current[genre] = el)}} className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth py-2 row-scroll" style={{ padding: '0 56px' }}>
                 {genreMovies.map((m, col) => {
                   const focused = focusRow === rowNumber && focusCol === col;
                   return (
@@ -353,15 +411,15 @@ export default function MovieGallery() {
                       tabIndex={0}
                       onFocus={() => { setFocusRow(rowNumber); setFocusCol(col); }}
                       onClick={() => { setFocusRow(rowNumber); setFocusCol(col); router.push(`/Movies/${m.id}`); }}
-                      className={`flex-shrink-0 w-[160px] ${focused ? "focus-ring" : ""}`}
+                      className={`flex-shrink-0 w-[180px] md:w-[220px] row-item ${focused ? "focus-ring" : ""}`}
                     >
                       <Card
                         isPressable
                         shadow="lg"
                         onPress={() => router.push(`/Movies/${m.id}`)}
-                        className="w-[160px] overflow-hidden rounded-lg transform transition-transform duration-300 hover:scale-105 hover:shadow-2xl"
+                        className="w-[180px] md:w-[220px] overflow-hidden rounded-lg transform transition-transform duration-300 hover:scale-105 hover:shadow-2xl"
                       >
-                        <div className="relative w-full h-[220px]">
+                        <div className="relative w-full h-[270px] md:h-[320px]">
                           <img src={m.poster} alt={m.title} className="w-full h-full object-cover rounded-lg" />
                           <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 text-xs rounded font-semibold">★ {m.rating.toFixed(1)}</div>
                           <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs rounded font-semibold">{m.year}</div>
@@ -373,7 +431,13 @@ export default function MovieGallery() {
                 })}
               </div>
 
-              <button onClick={() => scrollGenre(genre, "right")} className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-black/40 hover:bg-black/60 text-white px-3 py-2 rounded">▶</button>
+              {/* small arrows for mobile */}
+              <div className="md:hidden absolute left-2 top-1/2 -translate-y-1/2 z-10">
+                <button onClick={() => scrollGenre(genre, "left")} className="bg-black/40 hover:bg-black/60 px-3 py-2 rounded">◀</button>
+              </div>
+              <div className="md:hidden absolute right-2 top-1/2 -translate-y-1/2 z-10">
+                <button onClick={() => scrollGenre(genre, "right")} className="bg-black/40 hover:bg-black/60 px-3 py-2 rounded">▶</button>
+              </div>
             </div>
           </section>
         );
