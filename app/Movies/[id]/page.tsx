@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Navigation from "@/app/Navigation";
+import { useRouter } from "next/navigation";
+
+
 
 interface Movie {
   id: string;
@@ -23,6 +26,7 @@ interface Actor {
 }
 
 export default function MovieDetail() {
+  const router = useRouter();
   const pathname = usePathname(); // e.g., "/movies/tt1234567"
   const id = pathname?.split("/").pop();
 
@@ -149,6 +153,17 @@ export default function MovieDetail() {
     );
   }
 
+  function generateCode() {
+    // 5-digit numeric code
+    return Math.floor(10000 + Math.random() * 90000).toString();
+  }
+
+  function startWatchTogether() {
+    const code = generateCode();
+    // navigate to the watch page
+    router.push(`/SyncWatcher/${movie!.id}/${code}`);
+  }
+
   return (
     <>
       <Navigation />
@@ -193,6 +208,12 @@ export default function MovieDetail() {
                 {movie.usRating && <p className="text-sm">US Rating: {movie.usRating}</p>}
                 <p className="text-sm mt-2"><strong>Genres:</strong> {movie.genres.join(", ")}</p>
               </div>
+              <button
+                onClick={startWatchTogether}
+                className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded"
+              >
+                Watch Together
+              </button>
 
               <div className="flex-1 overflow-y-auto pr-1">
                 <h4 className="text-sm font-semibold mb-2">Actors</h4>

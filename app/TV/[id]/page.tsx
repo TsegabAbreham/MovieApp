@@ -26,7 +26,13 @@ interface TVShow {
   genres: string[];
   rating: number;
   plot: string;
-  usRating?: string;
+  usCertificates?: string | null;
+}
+
+interface Certificate {
+  rating: string;
+  country: { code: string; name: string };
+  attributes?: string[];
 }
 
 export default function TVShowDetail() {
@@ -58,6 +64,21 @@ export default function TVShowDetail() {
         if (!res.ok) throw new Error(`Show not found (status ${res.status})`);
         const data = await res.json();
 
+        // fetch US certificate
+        let usCert: string | null = null;
+        try {
+          const certRes = await fetch(`https://api.imdbapi.dev/titles/${id}/certificates`);
+          if (certRes.ok) {
+            const certJson = await certRes.json();
+            const us = certJson?.certificates?.find(
+              (c: Certificate) => c?.country?.code === "US"
+            );
+            usCert = us?.rating ?? null;
+          }
+        } catch (_) {
+          // ignore errors, leave certificate null
+        }
+
         setShow({
           id: data.id,
           title: data.primaryTitle || data.originalTitle || "Untitled",
@@ -66,6 +87,7 @@ export default function TVShowDetail() {
           genres: data.genres || [],
           rating: data.rating?.aggregateRating ?? 0,
           plot: data.plot || "No description available.",
+          usCertificates: usCert,
         });
 
         // seasons list (lightweight)
@@ -80,6 +102,8 @@ export default function TVShowDetail() {
             throw new Error(`Failed to fetch seasons (${seasonsRes.status}): ${txt}`);
           }
         }
+
+
 
         const seasonsJson = await seasonsRes.json();
         const seasonsArray: SeasonItem[] = Array.isArray(seasonsJson.seasons) ? seasonsJson.seasons : [];
@@ -98,6 +122,7 @@ export default function TVShowDetail() {
         if (!cancelled) setLoading(false);
       }
     };
+    
 
     loadShowAndSeasons();
 
@@ -287,6 +312,7 @@ export default function TVShowDetail() {
                 <div>
                   <p className="text-sm"><strong>Rating:</strong> ★ {show.rating.toFixed(1)}</p>
                   <p className="text-sm"><strong>Genres:</strong> {show.genres.join(", ")}</p>
+                  <p className="text-sm"><strong>Age rating:</strong> {show.usCertificates}</p>
                   <p className="mt-2 text-sm text-gray-300">{show.plot}</p>
                 </div>
               </div>
