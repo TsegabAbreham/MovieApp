@@ -158,7 +158,7 @@ export default function SyncWatcherPage() {
       return;
     }
 
-    const WS_URL = process.env.NEXT_PUBLIC_SYNC_WS || "ws://localhost:8080";
+    const WS_URL = process.env.NEXT_PUBLIC_SYNC_WS || "https://movieapp-production-922c.up.railway.app/";
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
     // expose for debugging
