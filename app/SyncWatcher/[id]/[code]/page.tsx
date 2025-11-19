@@ -4,14 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 /**
- * SyncWatcher page.tsx
+ * SyncWatcher page.tsx (sandboxed iframe)
  *
- * Server expectations (minimal):
- * - Accepts join: { type: "join", room, clientId, username }
- * - Sends presence: { type: "presence", participants: [{clientId, username}], hostId }
- * - Sends user-joined / user-left messages when people join/leave
- * - Forwards start messages: { type: "start", startAt, clientId, season?, episode? }
- * - Broadcasts host messages: { type: "host", isHost: boolean }
+ * Changes: iframe sandbox attribute updated to block new-tab redirects and popups.
+ * - Removed "allow-popups" from sandbox so window.open / target="_blank" are blocked.
+ * - Kept allow-same-origin and allow-scripts because vidsrc/embed requires them; if you can remove allow-same-origin
+ *   you'll get stronger isolation but may break embedded player behavior.
+ * - Added referrerPolicy="no-referrer" and loading="lazy".
  */
 
 type Participant = { clientId: string; username: string };
@@ -417,6 +416,12 @@ export default function SyncWatcherPage() {
           </div>
 
           <div className="bg-black rounded overflow-hidden">
+            {/*
+              IMPORTANT: sandbox attribute below intentionally DOES NOT include "allow-popups" or "allow-top-navigation".
+              This blocks window.open / link target="_blank" and prevents the iframe from opening new tabs or navigating
+              the top-level browsing context. Keep allow-same-origin only if the embed requires it; removing it increases
+              isolation but may break some third-party players.
+            */}
             <iframe
               ref={iframeRef}
               src={isTv && selectedSeason && selectedEpisode
@@ -424,9 +429,17 @@ export default function SyncWatcherPage() {
                 : `https://vidsrc.cc/v2/embed/movie/${id}?autoPlay=false`
               }
               style={{ width: "100%", height: 520 }}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation allow-popups"
+              // removed "allow-popups" to block popups/new tabs
+              sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-presentation"
               allow="autoplay; fullscreen; picture-in-picture"
+              referrerPolicy="no-referrer"
+              loading="lazy"
               title={`SyncWatcher ${title}`}
+              onLoad={() => {
+                // debug hook: won't be able to override cross-origin behavior, but we can log load state
+                // and optionally show an overlay if a navigation attempt is detected via blur/focus changes.
+                console.log('[sync] iframe loaded (sandboxed)');
+              }}
             />
           </div>
 
