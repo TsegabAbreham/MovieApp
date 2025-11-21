@@ -1,6 +1,5 @@
 "use client";
 
-import { Navbar, NavbarBrand, NavbarContent, NavbarItem, Link } from "@heroui/react";
 import { usePathname } from "next/navigation";
 import MovieGallery from "./MovieGallery";
 import Navigation from "../Navigation";

@@ -12,6 +12,7 @@
     "@heroui/card": "^2.2.25",
     "@heroui/navbar": "^2.2.25",
     "@heroui/react": "^2.8.5",
+    "@noriginmedia/norigin-spatial-navigation": "^2.3.0",
     "next": "16.0.1",
     "react": "19.2.0",
     "react-dom": "19.2.0"
