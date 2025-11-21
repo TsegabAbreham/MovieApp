@@ -3,11 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Team = {
-  name?: string;
-  badge?: string;
-};
-
+type Team = { name?: string; badge?: string };
 type RawMatch = {
   id?: string;
   title?: string;
@@ -17,12 +13,8 @@ type RawMatch = {
   is_live?: boolean;
   views?: number;
   importance?: number;
-  teams?: {
-    home?: Team;
-    away?: Team;
-  };
+  teams?: { home?: Team; away?: Team };
 };
-
 type MatchItem = {
   id: string;
   title: string;
@@ -45,7 +37,7 @@ export default function Sport() {
   const [error, setError] = useState<string | null>(null);
 
   const [selectedTab, setSelectedTab] = useState<"Live" | "Popular" | "All">("Live");
-  const [selectedCategory, setSelectedCategory] = useState<string | "All">("All");
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
 
   useEffect(() => {
     let mounted = true;
@@ -89,20 +81,21 @@ export default function Sport() {
             id: String(m.id ?? m.title ?? idx),
             title:
               m.title ??
-              (home?.name && away?.name
-                ? `${home.name} vs ${away.name}`
-                : `Match ${idx + 1}`),
+              (home?.name && away?.name ? `${home.name} vs ${away.name}` : `Match ${idx + 1}`),
             category: (m.category ?? "Other").toString(),
-            date: Number.isFinite(dateNum) ? (dateNum as number) : null,
+            date: Number.isFinite(Number(dateNum)) ? (Number(dateNum) as number) : null,
             homeBadge: home?.badge ?? null,
             awayBadge: away?.badge ?? null,
             homeName: home?.name ?? null,
             awayName: away?.name ?? null,
             status: m.status ?? "",
-            isLive: m.is_live ?? m.status?.toLowerCase() === "live",
-            popularity: m.views ?? m.importance ?? Math.random() * 100,
+            isLive: Boolean(m.is_live) || String(m.status ?? "").toLowerCase() === "live",
+            popularity: m.views ?? m.importance ?? Math.round(Math.random() * 100),
           };
         });
+
+        // keep a stable sort by date descending so "All" is meaningful by default
+        parsed.sort((a, b) => (b.date ?? 0) - (a.date ?? 0));
 
         setMatches(parsed);
       } catch (err: any) {
@@ -122,21 +115,25 @@ export default function Sport() {
   }, []);
 
   const categories = useMemo(() => {
-    const set = new Set<string>(matches.map((m) => m.category));
+    const set = new Set<string>(matches.map((m) => m.category ?? "Other"));
     return ["All", ...Array.from(set)];
   }, [matches]);
 
-  // Filter matches based on top tab and category
+  // safe copy + filtering
   const filteredMatches = useMemo(() => {
-    let filtered = [...matches];
+    // use a fresh copy so sorting/filtering isn't mutating shared arrays
+    let filtered = matches.slice();
 
     if (selectedTab === "Live") {
       filtered = filtered.filter((m) => m.isLive);
     } else if (selectedTab === "Popular") {
-      filtered = filtered.sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
+      filtered = filtered.slice().sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0));
+    } else {
+      // "All" - keep default ordering (by date desc from fetch)
+      filtered = filtered.slice();
     }
 
-    if (selectedCategory !== "All") {
+    if (selectedCategory && selectedCategory !== "All") {
       filtered = filtered.filter((m) => m.category === selectedCategory);
     }
 
@@ -147,7 +144,13 @@ export default function Sport() {
     if (!d) return "";
     try {
       const dt = new Date(d);
-      return dt.toLocaleString();
+      // nicer short format
+      return dt.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
     } catch {
       return "";
     }
@@ -159,50 +162,95 @@ export default function Sport() {
       .slice(0, 2)
       .map((s) => s[0]?.toUpperCase() ?? "")
       .join("");
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'><rect width='100%' height='100%' fill='#1f2937'/><text x='50%' y='50%' font-family='Arial' font-size='48' fill='#9CA3AF' dominant-baseline='middle' text-anchor='middle'>${initials}</text></svg>`;
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'><rect width='100%' height='100%' fill='#111827'/><text x='50%' y='50%' font-family='Arial' font-size='48' fill='#9CA3AF' dominant-baseline='middle' text-anchor='middle'>${initials}</text></svg>`;
     return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
   };
 
-  if (loading) return <div className="text-center mt-6 text-gray-400">Loading matches…</div>;
+  if (loading)
+    return <div className="text-center mt-6 text-gray-400">Loading matches…</div>;
   if (error) return <div className="p-6 text-red-500">Error: {error}</div>;
 
   return (
-    <div className="p-6 text-white">
-      <h1 className="text-2xl font-bold mb-4">Live Sports</h1>
+    
+    <div className="p-6 text-white max-w-6xl mx-auto">
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Live Sports</h1>
+          <p className="text-sm text-gray-400 mt-1">
+            {matches.length} total • {matches.filter(m => m.isLive).length} live
+          </p>
+        </div>
 
-      {/* Tabs: Live / Popular / All */}
-      <div className="flex gap-3 mb-6">
-        {["Live", "Popular", "All"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setSelectedTab(tab as any)}
-            className={`px-4 py-1.5 rounded-full ${
-              selectedTab === tab ? "bg-blue-600" : "bg-gray-700"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+        <div className="flex items-center gap-3">
+          {/* Tabs */}
+          <div className="flex gap-2 bg-gray-800/40 rounded-full p-1">
+            {(["Live", "Popular", "All"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setSelectedTab(tab)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium focus:outline-none ${
+                  selectedTab === tab ? "bg-blue-600 text-white" : "text-gray-200/80"
+                }`}
+                aria-pressed={selectedTab === tab}
+              >
+                {tab}
+                {tab === "Live" && (
+                  <span className="ml-2 inline-block text-xs font-normal text-red-300">
+                    {matches.filter((m) => m.isLive).length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
 
-      {/* Category bar */}
-      <nav className="mb-6 flex gap-3 overflow-auto">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-3 py-1 rounded-full whitespace-nowrap ${
-              selectedCategory === cat ? "bg-blue-600" : "bg-gray-800/40"
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </nav>
+          {/* Category select on mobile, chips on desktop */}
+          <div className="hidden md:flex gap-2 overflow-auto px-1">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${
+                  selectedCategory === cat ? "bg-blue-600 text-white" : "bg-gray-800/40 text-gray-200"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
 
-      {/* Matches Grid */}
+          <div className="md:hidden">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="bg-gray-800/50 text-white p-2 rounded"
+            >
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </header>
+
+      {/* Empty / No results */}
       {filteredMatches.length === 0 ? (
-        <div className="text-gray-400">No matches found.</div>
+        <div className="p-8 bg-gray-800 rounded text-center text-gray-300">
+          <p className="mb-2">No matches found for your selection.</p>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => {
+                setSelectedTab("All");
+                setSelectedCategory("All");
+              }}
+              className="px-4 py-2 bg-blue-600 rounded"
+            >
+              Reset filters
+            </button>
+            <span className="text-sm text-gray-500">Try switching tabs or categories</span>
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredMatches.map((m) => {
@@ -211,9 +259,9 @@ export default function Sport() {
               <article
                 key={m.id}
                 onClick={() => router.push(`/Livesports/${encodeURIComponent(m.id)}`)}
-                className="cursor-pointer rounded bg-gray-800 overflow-hidden hover:shadow-lg transition-shadow"
+                className="cursor-pointer rounded bg-gray-800 overflow-hidden hover:shadow-2xl transition-shadow focus-within:ring-2 focus-within:ring-blue-500"
               >
-                <div className="w-full h-44 bg-gray-700 overflow-hidden flex items-center justify-center">
+                <div className="relative w-full h-44 bg-gray-700 overflow-hidden flex items-center">
                   <img
                     src={imgSrc}
                     alt={`${m.title}`}
@@ -223,18 +271,32 @@ export default function Sport() {
                       (e.currentTarget as HTMLImageElement).src = initialsPlaceholder(m.title);
                     }}
                   />
-                </div>
-                <div className="p-3">
-                  <div className="font-semibold flex justify-between">
-                    <span>{m.title}</span>
-                    {m.isLive ? (
-                      <span className="text-red-500 text-xs ml-2">● Live</span>
-                    ) : null}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">{m.category}</div>
-                  {m.date && (
-                    <div className="text-xs text-gray-500 mt-1">{formatDate(m.date)}</div>
+                  {m.isLive && (
+                    <div className="absolute left-3 top-3 inline-flex items-center gap-2 bg-black/60 px-2 py-1 rounded text-xs font-semibold text-red-300">
+                      <span className="animate-pulse">●</span> Live
+                    </div>
                   )}
+                  <div className="absolute right-3 top-3 bg-black/60 px-2 py-1 rounded text-xs text-gray-200">
+                    {m.popularity ? `${Math.round(m.popularity)}★` : ""}
+                  </div>
+                </div>
+
+                <div className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-semibold text-sm line-clamp-2">{m.title}</h3>
+                    <div className="text-xs text-gray-400">{m.category}</div>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
+                    <div>{m.date ? formatDate(m.date) : "TBD"}</div>
+                    <div className="text-right">
+                      {m.homeName || m.awayName ? (
+                        <div className="text-[13px] text-gray-300">
+                          {m.homeName ?? "—"} <span className="text-gray-400">vs</span> {m.awayName ?? "—"}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               </article>
             );

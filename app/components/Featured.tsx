@@ -3,18 +3,27 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
 import { Movie } from "../hooks/useMedia";
+import { ratingToAge } from "../page";
 
 interface FeaturedProps {
   movies: Movie[];
+  age?: number;
 }
 
-export default function Featured({ movies }: FeaturedProps) {
+
+export default function Featured({ movies, age = 0 }: FeaturedProps) {
   const router = useRouter();
   const featuredCount = 6;
-  const featuredMovies = useMemo(
-    () => movies.slice(0, Math.min(featuredCount, movies.length)),
-    [movies]
-  );
+  const featuredMovies = useMemo(() => {
+    if (!movies) return [];
+
+    const filtered = movies.filter(m => {
+      const requiredAge = ratingToAge(m.usCertificates);
+      return age >= requiredAge;
+    });
+
+    return filtered.slice(0, Math.min(featuredCount, filtered.length));
+  }, [movies, age]);
 
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -101,6 +110,7 @@ export default function Featured({ movies }: FeaturedProps) {
           onPointerCancel={onFeaturedPointerUp}
         >
           {featuredMovies.map((m) => (
+        
             <div
               key={m.id}
               className="flex-shrink-0 w-full px-2 md:px-6 py-6"

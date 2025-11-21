@@ -1,117 +1,136 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from "@heroui/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from "@heroui/react";
+import { useActiveProfile } from "./page";
 
-export const SearchIcon = ({
-  size = 24,
-  strokeWidth = 1.5,
-  width,
-  height,
-  ...props
-}: {
+interface LetterSquareProps {
+  letter: string;
   size?: number;
-  strokeWidth?: number;
-  width?: number | string;
-  height?: number | string;
-  [key: string]: any;
+  bgColor?: string;
+  textColor?: string;
+  border?: string;
+}
+
+const LetterSquare: React.FC<LetterSquareProps> = ({
+  letter,
+  size = 40,
+  bgColor = "#4f46e5",
+  textColor = "white",
+  border = "2px solid rgba(0,0,0,0.2)",
 }) => (
-  <svg
-    aria-hidden="true"
-    fill="none"
-    focusable="false"
-    height={height || size}
-    role="presentation"
-    viewBox="0 0 24 24"
-    width={width || size}
-    {...props}
+  <div
+    aria-hidden
+    style={{
+      width: size,
+      height: size,
+      minWidth: size,
+      minHeight: size,
+      backgroundColor: bgColor,
+      color: textColor,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: size * 0.55,
+      fontWeight: 700,
+      border,
+      borderRadius: 6,
+    }}
+    className="select-none"
   >
-    <path
-      d="M11.5 21C16.7467 21 21 16.7467 21 11.5C21 6.25329 16.7467 2 11.5 2C6.25329 2 2 6.25329 2 11.5C2 16.7467 6.25329 21 11.5 21Z"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={strokeWidth}
-    />
-    <path
-      d="M22 22L20 20"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={strokeWidth}
-    />
-  </svg>
+    {letter}
+  </div>
 );
 
 export default function Navigation() {
   const pathname = (usePathname() || "/").toLowerCase();
+  const profile = useActiveProfile();
+  const firstLetter = String(profile?.name ?? "A").charAt(0).toUpperCase();
+
+  const items = [
+    { key: "movies", label: "Movies", href: "/Movies", match: pathname.startsWith("/movies") },
+    { key: "tv", label: "TV Shows", href: "/TV", match: pathname.startsWith("/tv") },
+    { key: "livesports", label: "Live Sports", href: "/Livesports", match: pathname.startsWith("/livesports") },
+  ];
 
   return (
-    // added relative so absolutely-positioned center menu can align to the navbar
-    <Navbar shouldHideOnScroll className="relative bg-gray-900 shadow-md px-6 py-3 fixed w-full z-50">
-      <NavbarBrand>
-        {/* smaller, vertically-centered title, clickable to home */}
-        <Link href="/" className="flex items-center gap-3">
-          <span className="text-2xl md:text-3xl font-extrabold leading-tight">
-            <span className="text-indigo-400">TAMovies</span>
-          </span>
-        </Link>
-      </NavbarBrand>
-
-      {/* center menu: absolute-centered like Netflix/Prime (hidden on very small screens) */}
-      <NavbarContent
-        justify="center"
-        className="hidden sm:flex gap-6 absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
-      >
-        <NavbarItem isActive={pathname.startsWith("/Movies")}>
-          <Link
-            href="/Movies"
-            className={`transition-colors ${
-              pathname.startsWith("/Movies") ? "text-white border-b-2 border-blue-500" : "hover:text-blue-400"
-            }`}
-          >
-            Movies
+    <Navbar shouldHideOnScroll className="fixed top-0 left-0 right-0 z-50 bg-gray-900/95 backdrop-blur-md shadow-md">
+      <div className="w-full max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
+        {/* Left: Logo */}
+        <NavbarBrand>
+          <Link href="/" className="flex items-center gap-3">
+            <div className="hidden sm:block">
+              <div className="text-lg font-extrabold leading-tight text-indigo-400">
+                TAMovies
+              </div>
+            </div>
           </Link>
-        </NavbarItem>
+        </NavbarBrand>
 
-        <NavbarItem isActive={pathname.startsWith("/TV")}>
-          <Link
-            href="/TV"
-            className={`transition-colors ${
-              pathname.startsWith("/TV") ? "text-white border-b-2 border-blue-500" : "hover:text-blue-400"
-            }`}
-          >
-            TV Shows
-          </Link>
-        </NavbarItem>
+        {/* Center menu */}
+        <NavbarContent className="hidden sm:flex justify-center flex-1 absolute left-1/2 transform -translate-x-1/2">
+          <nav className="flex gap-6">
+            {items.map((it) => {
+              const active = Boolean(it.match);
+              return (
+                <NavbarItem key={it.key} className="relative px-1">
+                  <Link
+                    href={it.href}
+                    aria-current={active ? "page" : undefined}
+                    className={`inline-block px-2 py-2 text-sm font-medium transition-colors ${
+                      active ? "text-white" : "text-gray-300 hover:text-white"
+                    }`}
+                  >
+                    {it.label}
+                    {/* bottom indicator */}
+                    <span
+                      className={`absolute left-0 right-0 bottom-0 mx-auto h-0.5 rounded-full transition-all duration-200 ${
+                        active ? "w-full bg-blue-500 opacity-100" : "w-0 bg-transparent opacity-0"
+                      }`}
+                    />
+                  </Link>
+                </NavbarItem>
+              );
+            })}
+          </nav>
+        </NavbarContent>
 
-        <NavbarItem isActive={pathname.startsWith("/Livesports")}>
-          <Link
-            href="/Livesports"
-            className={`transition-colors ${
-              pathname.startsWith("/Livesports") ? "text-white border-b-2 border-blue-500" : "hover:text-blue-400"
-            }`}
-          >
-            Live Sports
-          </Link>
-        </NavbarItem>
-      </NavbarContent>
+        {/* Right: Search + Profile */}
+        <NavbarContent justify="end" className="flex items-center gap-3">
+          {/* Search */}
+          <NavbarItem>
+            <Link
+              href="/browse"
+              className="p-2 rounded text-gray-200 hover:text-white transition-colors"
+            >
+              <svg
+                aria-hidden
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="inline-block"
+              >
+                <circle cx="11.5" cy="11.5" r="8.5" />
+                <path d="M21 21L18 18" />
+              </svg>
+            </Link>
+          </NavbarItem>
 
-      {/* right side: search / other actions */}
-      <NavbarContent justify="end" className="flex items-center gap-4 ml-auto">
-        <NavbarItem
-          className={`hidden lg:flex ${
-            pathname.startsWith("/browse") ? "text-white border-b-2 border-blue-500" : "hover:text-blue-400"
-          }`}
-          isActive={pathname.startsWith("/browse")}
-        >
-          <Link href="/browse" className="transition-colors text-white text-[16px] font-medium hover:text-blue-400">
-            <SearchIcon size={20} />
-          </Link>
-        </NavbarItem>
-      </NavbarContent>
+          {/* Profile */}
+          <NavbarItem>
+            <Link href="/profile">
+              <LetterSquare letter={firstLetter} size={36} />
+            </Link>
+          </NavbarItem>
+        </NavbarContent>
+      </div>
     </Navbar>
   );
 }

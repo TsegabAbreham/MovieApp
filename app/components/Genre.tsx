@@ -4,20 +4,29 @@ import { useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@heroui/card";
 import { Movie } from "../hooks/useMedia";
+import { ratingToAge } from "../page";
 
 interface FeaturedProps {
   movies: Movie[];
+  age?: number;
 }
 
-export default function Genre({ movies }: FeaturedProps) {
-  const router = useRouter();
 
-  const genres = useMemo(
-    () => Array.from(new Set(movies.flatMap((m) => m.genres))).filter((g) => g),
-    [movies]
+export default function Genre({ movies, age = 0 }: FeaturedProps) {
+  const router = useRouter();
+  const genreRefs = useRef<{ [genre: string]: HTMLDivElement | null }>({});
+
+  // Filter movies by age first
+  const allowedMovies = useMemo(() => 
+    movies.filter(m => age >= ratingToAge(m.usCertificates ?? undefined)), 
+    [movies, age]
   );
 
-  const genreRefs = useRef<{ [genre: string]: HTMLDivElement | null }>({});
+  // Extract unique genres from allowed movies
+  const genres = useMemo(() => {
+    const allGenres = allowedMovies.flatMap(m => m.genres ?? []);
+    return Array.from(new Set(allGenres.filter(Boolean)));
+  }, [allowedMovies]);
 
   const scrollGenre = (genre: string, direction: "left" | "right") => {
     const container = genreRefs.current[genre];
@@ -32,7 +41,9 @@ export default function Genre({ movies }: FeaturedProps) {
   return (
     <>
       {genres.map((genre) => {
-        const genreMovies = movies.filter((m) => m.genres.includes(genre));
+        // Filter allowedMovies per genre
+        const genreMovies = allowedMovies.filter(m => m.genres.includes(genre));
+
         return (
           <section key={genre} className="relative z-10">
             <div className="flex items-center justify-between mb-3">
@@ -55,7 +66,7 @@ export default function Genre({ movies }: FeaturedProps) {
 
             <div className="relative">
               <div
-                ref={(el) => {(genreRefs.current[genre] = el)}}
+                ref={(el) => { genreRefs.current[genre] = el }}
                 className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth py-2 row-scroll"
                 style={{ padding: "0 56px" }}
               >

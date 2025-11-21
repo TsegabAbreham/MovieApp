@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Navigation from "@/app/Navigation";
 
+import { useActiveProfile } from "@/app/page";
+import { ratingToAge } from "@/app/page";
+
 interface Episode {
   id: string;
   title: string;
@@ -49,6 +52,13 @@ export default function TVShowDetail() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchAbortRef = useRef<AbortController | null>(null);
+
+  const profile = useActiveProfile();
+  const userAge = profile?.age ?? 0;
+
+  const requiredAge = ratingToAge(show?.usCertificates ?? null);
+  const canWatch = userAge >= requiredAge;
+
 
   useEffect(() => {
     if (!id) return;
@@ -262,6 +272,14 @@ export default function TVShowDetail() {
   }, [id, selectedSeason, episodesBySeason, selectedEpisode]);
 
   const currentEpisodes = selectedSeason ? episodesBySeason[selectedSeason] ?? [] : [];
+
+  if(!canWatch) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-white px-6">
+        <p className="text-center">You are not old enough to view this content.</p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

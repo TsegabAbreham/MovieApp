@@ -352,7 +352,7 @@ export default function SyncWatcherPage() {
     };
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-        <div className="bg-white dark:bg-gray-800 rounded p-6 w-96">
+        <div className="bg-black dark:bg-gray-800 rounded p-6 w-96">
           <h3 className="text-lg font-semibold mb-2">Enter a username</h3>
           <input value={val} onChange={(e) => setVal(e.target.value)} className="w-full p-2 rounded border" placeholder="Your name" />
           <div className="flex gap-2 mt-4 justify-end">
