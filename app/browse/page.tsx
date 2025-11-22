@@ -198,11 +198,15 @@ export default function BrowsePage() {
   // filtered by profile age (profileAge used here)
   const filteredMovies = useMemo(() => {
     if (!movies || movies.length === 0) return [];
+
     return movies.filter((m) => {
+      if (m.rating === 0.0) return false; // skip unrated items
+
       const requiredAge = ratingToAge(m.usCertificates, m.rating);
       return profileAge >= requiredAge;
     });
   }, [movies, profileAge]);
+
 
 
   // update query via form
@@ -236,7 +240,7 @@ export default function BrowsePage() {
             <Input
               variant="flat"
               radius="md"
-              placeholder="Search movies, shows, actors..."
+              placeholder="Search movies and shows."
               value={query ?? ""}
               onChange={(e: any) => setQuery(e.target.value)}
               classNames={{

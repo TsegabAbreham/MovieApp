@@ -125,7 +125,7 @@ export default function Navigation() {
 
           {/* Profile */}
           <NavbarItem>
-            <Link href="/profile">
+            <Link href="/">
               <LetterSquare letter={firstLetter} size={36} />
             </Link>
           </NavbarItem>

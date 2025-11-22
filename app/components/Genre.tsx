@@ -6,6 +6,7 @@ import { Card } from "@heroui/card";
 import { Movie } from "../hooks/useMedia";
 import { ratingToAge } from "../page";
 
+
 interface FeaturedProps {
   movies: Movie[];
   age?: number;
