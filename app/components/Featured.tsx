@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 import { Movie } from "../hooks/useMedia";
 import { ratingToAge } from "../page";
@@ -12,6 +12,7 @@ interface FeaturedProps {
 
 export default function Featured({ movies, age = 0 }: FeaturedProps) {
   const router = useRouter();
+  const pathName = usePathname();
   const featuredCount = 6;
 
   const featuredMovies = useMemo(() => {
@@ -211,9 +212,9 @@ export default function Featured({ movies, age = 0 }: FeaturedProps) {
                   <div
                     role="button"
                     tabIndex={0}
-                    onClick={() => router.push(`/Movies/${m.id}`)}
+                    onClick={() => router.push(`${pathName}/${m.id}`)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") router.push(`/Movies/${m.id}`);
+                      if (e.key === "Enter") router.push(`${pathName}/${m.id}`);
                     }}
                     className={`relative rounded-2xl overflow-hidden cursor-pointer transition-transform duration-400 ease-out ${
                       isActive ? "shadow-2xl" : "shadow-xl"
@@ -261,7 +262,7 @@ export default function Featured({ movies, age = 0 }: FeaturedProps) {
                       <button
                         onClick={(ev) => {
                           ev.stopPropagation();
-                          router.push(`/Movies/${m.id}`);
+                          router.push(`${pathName}/${m.id}`);
                         }}
                         className="bg-white text-black px-4 py-2 rounded-md font-semibold"
                       >

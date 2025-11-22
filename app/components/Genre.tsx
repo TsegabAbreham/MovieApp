@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Card } from "@heroui/card";
 import { Movie } from "../hooks/useMedia";
 import { ratingToAge } from "../page";
@@ -15,6 +15,7 @@ interface FeaturedProps {
 
 export default function Genre({ movies, age = 0 }: FeaturedProps) {
   const router = useRouter();
+  const pathName = usePathname();
   const genreRefs = useRef<{ [genre: string]: HTMLDivElement | null }>({});
 
   // Filter movies by age first
@@ -75,13 +76,13 @@ export default function Genre({ movies, age = 0 }: FeaturedProps) {
                   <div
                     key={`wrap-${m.id}`}
                     tabIndex={0}
-                    onClick={() => router.push(`/Movies/${m.id}`)}
+                    onClick={() => router.push(`${pathName}/${m.id}`)}
                     className="flex-shrink-0 w-[180px] md:w-[220px] row-item"
                   >
                     <Card
                       isPressable
                       shadow="lg"
-                      onPress={() => router.push(`/Movies/${m.id}`)}
+                      onPress={() => router.push(`${pathName}/${m.id}`)}
                       className="w-[180px] md:w-[220px] overflow-hidden rounded-lg transform transition-transform duration-300 hover:scale-105 hover:shadow-2xl"
                     >
                       <div className="relative w-full h-[270px] md:h-[320px]">
