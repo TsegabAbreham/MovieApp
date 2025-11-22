@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from "@heroui/react";
 import { useActiveProfile } from "./page";
+import { useRef } from "react";
+import { useRemoteNav } from "./hooks/useRemoteNav";
 
 interface LetterSquareProps {
   letter: string;
@@ -49,6 +51,16 @@ export default function Navigation() {
   const profile = useActiveProfile();
   const firstLetter = String(profile?.name ?? "A").charAt(0).toUpperCase();
 
+  const navRef = useRef<HTMLDivElement | null>(null);
+
+  // ← fixed: pass the focusClass and selector so the hook adds the tv-nav-item class
+  useRemoteNav(navRef, {
+    selector: "nav a, nav button, .navbar-right a, .navbar-right button, [data-navbar-right-item]",
+    focusClass: "tv-nav-item",
+    loop: false,
+    autoScroll: false,
+  });
+
   const items = [
     { key: "movies", label: "Movies", href: "/Movies", match: pathname.startsWith("/movies") },
     { key: "tv", label: "TV Shows", href: "/TV", match: pathname.startsWith("/tv") },
@@ -57,7 +69,7 @@ export default function Navigation() {
 
   return (
     <Navbar shouldHideOnScroll className="fixed top-0 left-0 right-0 z-50 bg-gray-900/95 backdrop-blur-md shadow-md">
-      <div className="w-full max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
+      <div ref={navRef} className="w-full max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
         {/* Left: Logo */}
         <NavbarBrand>
           <Link href="/" className="flex items-center gap-3">
@@ -84,7 +96,6 @@ export default function Navigation() {
                     }`}
                   >
                     {it.label}
-                    {/* bottom indicator */}
                     <span
                       className={`absolute left-0 right-0 bottom-0 mx-auto h-0.5 rounded-full transition-all duration-200 ${
                         active ? "w-full bg-blue-500 opacity-100" : "w-0 bg-transparent opacity-0"
@@ -98,8 +109,7 @@ export default function Navigation() {
         </NavbarContent>
 
         {/* Right: Search + Profile */}
-        <NavbarContent justify="end" className="flex items-center gap-3">
-          {/* Search */}
+        <NavbarContent justify="end" className="flex items-center gap-3 navbar-right">
           <NavbarItem>
             <Link
               href="/browse"
@@ -123,9 +133,8 @@ export default function Navigation() {
             </Link>
           </NavbarItem>
 
-          {/* Profile */}
           <NavbarItem>
-            <Link href="/">
+            <Link href="/" data-navbar-right-item className="tv-nav-item">
               <LetterSquare letter={firstLetter} size={36} />
             </Link>
           </NavbarItem>

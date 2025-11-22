@@ -28,7 +28,6 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
-        <script src="../../public/js/spatial-navigation.js"></script>
       </body>
     </html>
   );

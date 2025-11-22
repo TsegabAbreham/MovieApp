@@ -51,6 +51,54 @@ body {
   box-shadow: none !important;
 }
 
+/* Navbar / general remote nav items */
+.tv-nav-item {
+  transition: box-shadow 0.2s ease, outline 0.2s ease, transform 0.2s ease;
+}
+
+.tv-nav-item:focus {
+  outline: 5px solid #00aaff;       /* bright but not harsh */
+  outline-offset: 2px;               /* some spacing from element */
+  border-radius: 6px;                /* rounded corners */
+  box-shadow: 0 0 8px #00aaff88;    /* subtle glow effect */
+}
+
+/* Card / row items inside Genre or other rows */
+.row-item {
+  transition: box-shadow 0.2s ease, outline 0.2s ease, transform 0.2s ease;
+}
+
+.row-item:focus {
+  outline: 5px solid #00aaff;
+  outline-offset: 4px;
+  border-radius: 8px;
+  box-shadow: 0 0 12px #00aaffbb;
+  transform: scale(1.05);  /* subtle zoom effect for focus */
+}
+
+/* Only show outline for keyboard/remote focus, not mouse clicks */
+.tv-nav-item:focus-visible,
+.row-item:focus-visible {
+  outline: 5px solid #00aaff;
+}
+
+/* Remove default browser outline */
+button:focus,
+a:focus {
+  outline: none;
+}
+
+/* Hide scrollbar for rows */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+
+
 /* Remove browser autofill yellow/white background in Chromium-based browsers */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,

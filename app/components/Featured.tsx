@@ -1,9 +1,12 @@
 "use client";
+export const dynamic = "force-dynamic";
+
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
 import { Movie } from "../hooks/useMedia";
 import { ratingToAge } from "../page";
+import { useRemoteNav } from "../hooks/useRemoteNav";
 
 interface FeaturedProps {
   movies: Movie[];
@@ -30,6 +33,15 @@ export default function Featured({ movies, age = 0 }: FeaturedProps) {
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
+
+  // Attach remote nav to the viewport so left/right move focus between slides.
+  // We target the inner focusable nodes (role="button" + tabindex=0)
+  useRemoteNav(viewportRef, {
+    selector: "div[role='button'][tabindex='0']",
+    focusClass: "row-item",
+    loop: true,
+    autoScroll: false, // we manage centering via transform
+  });
 
   // sizing
   const slideWidthRef = useRef<number>(0);
@@ -73,13 +85,12 @@ export default function Featured({ movies, age = 0 }: FeaturedProps) {
   }
 
   useEffect(() => {
-    // recalc on mount and when window resizes
     computeLayout();
     const onResize = () => computeLayout();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [featuredMovies.length, featuredIndex]); // recompute if count or index changes
+  }, [featuredMovies.length, featuredIndex]);
 
   // keep translate in sync when index changes (smooth)
   useEffect(() => {
@@ -164,6 +175,28 @@ export default function Featured({ movies, age = 0 }: FeaturedProps) {
     setIsPaused(false);
   }
 
+  // When remote focus moves to a slide inside the viewport, update featuredIndex so transform recenters
+  useEffect(() => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    const onFocusIn = (ev: FocusEvent) => {
+      const target = ev.target as HTMLElement | null;
+      if (!target) return;
+      // only handle focus that is within this viewport
+      if (!vp.contains(target)) return;
+      const slide = target.closest<HTMLElement>("[data-featured-index]");
+      if (!slide) return;
+      const idxRaw = slide.dataset.featuredIndex;
+      if (!idxRaw) return;
+      const idx = Number(idxRaw);
+      if (!Number.isNaN(idx) && idx !== featuredIndex) {
+        setFeaturedIndex(idx);
+      }
+    };
+    vp.addEventListener("focusin", onFocusIn);
+    return () => vp.removeEventListener("focusin", onFocusIn);
+  }, [featuredIndex, featuredMovies.length]);
+
   if (featuredMovies.length === 0) return null;
 
   return (
@@ -198,11 +231,10 @@ export default function Featured({ movies, age = 0 }: FeaturedProps) {
             {featuredMovies.map((m, idx) => {
               // compute classes for scale / shadow depending on active index
               const isActive = idx === featuredIndex;
-              const isLeft = idx === featuredIndex - 1;
-              const isRight = idx === featuredIndex + 1;
               return (
                 <div
                   key={m.id}
+                  data-featured-index={idx}
                   className="flex-shrink-0 px-2 py-6"
                   style={{
                     width: slideWidthRef.current || undefined, // computed by computeLayout
