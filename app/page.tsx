@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState, useSyncExternalStore } from "react";
+import React, { useEffect, useState, useSyncExternalStore, useRef } from "react";
 import Link from "next/link";
+import { useRemoteNav } from "./hooks/useRemoteNav";
 
 // Simple local storage keys
 const LS_PROFILES = "tamovies_profiles_v1";
@@ -196,6 +197,17 @@ export default function ProfileSelectionPage() {
   const [birthdate, setBirthdate] = useState("");
   const [error, setError] = useState("");
 
+  // ref for remote navigation (TV / remote-control support)
+  const navRef = useRef<HTMLDivElement | null>(null);
+
+  // initialize remote nav hook — selector includes the profile tiles and interactive controls
+  useRemoteNav(navRef, {
+    selector: ".profile-tile, .add-profile, button, a, [data-navbar-right-item]",
+    focusClass: "tv-nav-item",
+    loop: true,
+    autoScroll: true,
+  });
+
   useEffect(() => {
     const handler = () => setProfiles(readProfiles());
     // also listen to storage events from other tabs
@@ -237,7 +249,7 @@ export default function ProfileSelectionPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white px-6 py-12 flex items-center justify-center">
+    <main ref={navRef} className="min-h-screen bg-black text-white px-6 py-12 flex items-center justify-center">
       <div className="max-w-5xl w-full">
         <h1 className="text-4xl font-extrabold mb-6">Who's watching?</h1>
 
@@ -251,7 +263,7 @@ export default function ProfileSelectionPage() {
               key={p.id}
               tabIndex={0}
               onClick={() => handleSelect(p.id)}
-              className={`group cursor-pointer select-none p-4 rounded-lg bg-gray-900 hover:scale-105 transform transition shadow-lg relative flex flex-col items-center gap-3 outline-none ring-0 focus:ring-2 focus:ring-indigo-500 ${selectedId === p.id ? "ring-4 ring-indigo-600" : ""}`}>
+              className={`profile-tile group cursor-pointer select-none p-4 rounded-lg bg-gray-900 hover:scale-105 transform transition shadow-lg relative flex flex-col items-center gap-3 outline-none ring-0 focus:ring-2 focus:ring-indigo-500 ${selectedId === p.id ? "ring-4 ring-indigo-600" : ""}`}>
 
               <div className="w-28 h-28 rounded-full bg-gray-700 flex items-center justify-center text-2xl font-semibold">
                 {p.name.split(" ").map((s: string) => s[0]).slice(0,2).join("")}
@@ -278,7 +290,7 @@ export default function ProfileSelectionPage() {
           <div
             onClick={() => setShowModal(true)}
             tabIndex={0}
-            className="cursor-pointer p-4 rounded-lg bg-gray-900 hover:scale-105 transform transition shadow-lg flex flex-col items-center gap-3 justify-center">
+            className="add-profile cursor-pointer p-4 rounded-lg bg-gray-900 hover:scale-105 transform transition shadow-lg flex flex-col items-center gap-3 justify-center">
             <div className="w-28 h-28 rounded-full border-2 border-dashed border-gray-600 flex items-center justify-center text-3xl">+</div>
             <div className="text-center">Add Profile</div>
           </div>
