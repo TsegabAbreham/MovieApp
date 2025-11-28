@@ -322,7 +322,6 @@ export default function TVShowDetail() {
                 <iframe
                   src={`https://vidsrc.cc/v2/embed/tv/${show.id}/${selectedEpisode.season}/${selectedEpisode.episodeNumber}?autoPlay=false`}
                   style={{ width: "100%", height: "520px" }}
-                  sandbox="allow-scripts allow-same-origin"
                   allow="autoplay; fullscreen"
                   title={`${show.title} S${selectedEpisode.season}E${selectedEpisode.episodeNumber}`}
                 />

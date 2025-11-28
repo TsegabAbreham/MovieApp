@@ -65,6 +65,7 @@ export default function Navigation() {
     { key: "movies", label: "Movies", href: "/Movies", match: pathname.startsWith("/movies") },
     { key: "tv", label: "TV Shows", href: "/TV", match: pathname.startsWith("/tv") },
     { key: "livesports", label: "Live Sports", href: "/Livesports", match: pathname.startsWith("/livesports") },
+    { key: "anime", label: "Anime", href: "/Anime", match: pathname.startsWith("/Anime") }
   ];
 
   return (

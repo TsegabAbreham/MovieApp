@@ -6,7 +6,6 @@ import Navigation from "@/app/Navigation";
 import { useRouter } from "next/navigation";
 
 
-
 interface Movie {
   id: string;
   title: string;
@@ -175,7 +174,6 @@ export default function MovieDetail() {
               <iframe
                 src={`https://vidsrc.cc/v2/embed/movie/${movie.id}?autoPlay=false`}
                 style={{ width: "100%", height: "520px" }}
-                sandbox="allow-scripts allow-same-origin"
                 allow="autoplay; fullscreen"
                 title={movie.title}
               />

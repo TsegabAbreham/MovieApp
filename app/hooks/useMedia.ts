@@ -18,6 +18,7 @@ export interface Movie {
   usCertificates: string; // always a string now
 }
 
+
 export function useMovieFetch(movieorseries: string) {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,3 +172,5 @@ export function useMovieFetch(movieorseries: string) {
 
   return { movies, loading };
 }
+
+
