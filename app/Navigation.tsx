@@ -7,6 +7,7 @@ import { Navbar, NavbarBrand, NavbarContent, NavbarItem } from "@heroui/react";
 import { useActiveProfile } from "./page";
 import { useRef } from "react";
 import { useRemoteNav } from "./hooks/useRemoteNav";
+import Image from "next/image";
 
 interface LetterSquareProps {
   letter: string;
@@ -75,9 +76,13 @@ export default function Navigation() {
         <NavbarBrand>
           <Link href="/" className="flex items-center gap-3">
             <div className="hidden sm:block">
-              <div className="text-lg font-extrabold leading-tight text-indigo-400">
-                TAMovies
-              </div>
+              <Image
+                src="/images/Logo.png"
+                alt="TA Movies"
+                width={1000}
+                height={1000}
+                className="h-8 w-auto"
+              />
             </div>
           </Link>
         </NavbarBrand>

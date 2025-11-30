@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useSyncExternalStore, useRef } from "react";
 import Link from "next/link";
 import { useRemoteNav } from "./hooks/useRemoteNav";
-
+import Image from "next/image";
 // Simple local storage keys
 const LS_PROFILES = "tamovies_profiles_v1";
 const LS_ACTIVE_ID = "tamovies_active_profile_id_v1";
@@ -178,6 +178,182 @@ export function deleteProfileById(id: string) {
   }
 }
 
+
+// Detect platform to push download options
+export function detectPlatform() {
+  if (typeof window === "undefined") return "server";
+
+  const ua = navigator.userAgent;
+
+  if (ua.includes("Electron") && /Android/.test(ua) && /wv/.test(ua)) {
+    return;
+  } 
+  else{
+    return (
+      <div
+        id="platform-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="TA Movies download modal"
+        style={{
+          position: "fixed",
+          inset: 0,
+          width: "100vw",
+          height: "100vh",
+          background: "rgba(0,0,0,0.6)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 9999,
+          padding: "20px",
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          style={{
+            background: "linear-gradient(180deg, rgba(6,50,63,0.98), rgba(3,68,94,0.95))",
+            color: "#fff",
+            padding: "20px",
+            borderRadius: "12px",
+            width: "min(720px, 100%)",
+            maxWidth: "720px",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.6)",
+            position: "relative",
+            boxSizing: "border-box",
+          }}
+        >
+          {/* Close button */}
+          <button
+            aria-label="Close modal"
+            onClick={() => {
+              const el = document.getElementById("platform-modal");
+              if (el) el.remove();
+            }}
+            style={{
+              position: "absolute",
+              top: "12px",
+              right: "12px",
+              border: "none",
+              background: "transparent",
+              color: "rgba(255,255,255,0.9)",
+              fontSize: "18px",
+              cursor: "pointer",
+              padding: "6px",
+            }}
+          >
+            ✖
+          </button>
+
+          {/* Header */}
+          <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "12px" }}>
+            <div style={{
+              width: 48,
+              height: 48,
+              borderRadius: 8,
+              overflow: "hidden",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(255,255,255,0.06)"
+            }}>
+              {/* optional small logo - replace src as needed */}
+              <Image src="/images/Logo.png" alt="TA Movies" width={40} height={40} />
+            </div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700 }}>TA Movies App</h2>
+              <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.85)" }}>
+                Using the app is better than the web to avoid popup ads.
+              </div>
+            </div>
+          </div>
+
+          {/* Download choices */}
+          <div style={{
+            display: "flex",
+            gap: "12px",
+            flexWrap: "wrap",
+            marginTop: "10px",
+          }}>
+            {/* Windows card */}
+            <div style={{
+              flex: "1 1 280px",
+              minWidth: 240,
+              background: "rgba(255,255,255,0.04)",
+              padding: "14px",
+              borderRadius: "10px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              textAlign: "center",
+            }}>
+              <Image src="/images/WindowsIcon.png" alt="Windows Download" width={96} height={96} />
+              <div style={{ marginTop: "8px", fontWeight: 700 }}>Windows</div>
+              <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.8)", marginTop: "6px" }}>
+                Stable installer for Windows 10/11.
+              </div>
+              {/* Replace href with your real download link */}
+              <a
+                href="https://github.com/TsegabAbreham/MovieApp/releases/download/v1.0.0/TA.Movie.App.Setup.1.0.0.exe"
+                download
+                style={{
+                  marginTop: "12px",
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  background: "#0ea5a5",
+                  color: "#002b2b",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  display: "inline-block",
+                }}
+              >
+                Download for Windows
+              </a>
+            </div>
+
+            {/* Android card */}
+            <div style={{
+              flex: "1 1 280px",
+              minWidth: 240,
+              background: "rgba(255,255,255,0.04)",
+              padding: "14px",
+              borderRadius: "10px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              textAlign: "center",
+            }}>
+              <Image src="/images/AndroidIcon.png" alt="Android Download" width={96} height={96} />
+              <div style={{ marginTop: "8px", fontWeight: 700 }}>Android (APK)</div>
+              <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.8)", marginTop: "6px" }}>
+                Install the APK to avoid browser popups (allow installs from unknown sources).
+              </div>
+              {/* Replace href with your real APK link */}
+              <a
+                href="https://github.com/TsegabAbreham/MovieApp/releases/download/v1.0.0/TAMovies.apk"
+                download
+                style={{
+                  marginTop: "12px",
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  background: "#8be04b",
+                  color: "#083500",
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  display: "inline-block",
+                }}
+              >
+                Download APK
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+
+  }
+}
+
+
 // ---------- Main component (profile selection UI) ----------
 export default function ProfileSelectionPage() {
   const [profiles, setProfiles] = useState(() => {
@@ -252,7 +428,7 @@ export default function ProfileSelectionPage() {
     <main ref={navRef} className="min-h-screen bg-black text-white px-6 py-12 flex items-center justify-center">
       <div className="max-w-5xl w-full">
         <h1 className="text-4xl font-extrabold mb-6">Who's watching?</h1>
-
+        <p className="text-gray-400 mb-6">{detectPlatform()}</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
           {profiles.length === 0 && (
             <div className="col-span-full text-gray-400">No profiles yet — create one to get started.</div>
