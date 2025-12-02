@@ -185,9 +185,13 @@ export function detectPlatform() {
 
   const ua = navigator.userAgent;
 
-  if (ua.includes("Electron") && /Android/.test(ua) && /wv/.test(ua)) {
+  const isElectron = ua.includes("Electron");
+  const isAndroidWebView = /Android/.test(ua) && /wv/.test(ua);
+
+  if (isElectron || isAndroidWebView) {
     return;
-  } 
+  }
+
   else{
     return (
       <div
