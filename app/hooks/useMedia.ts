@@ -173,4 +173,153 @@ export function useMovieFetch(movieorseries: string) {
   return { movies, loading };
 }
 
+export type AnimeFetchType =
+  | "top"
+  | "recommendations"
+  | "genre"
+  | "search";
 
+/**
+ * useAnimeFetch
+ * - Mirrors the shape and return contract of your useMovieFetch hook so you can use it alongside movie/tv hooks.
+ * - Supports fetching `top` anime, `recommendations` (general recommended anime), `genre` (by genre id) and `search` (query string).
+ *
+ * Usage examples:
+ *  useAnimeFetch('top', '1')                 // top anime, page=1
+ *  useAnimeFetch('recommendations', '1')     // recommendations page=1
+ *  useAnimeFetch('genre', '10')              // anime filtered by genre id 10 (Fantasy)
+ *  useAnimeFetch('search', 'naruto')         // search for "naruto"
+ */
+export function useAnimeFetch(
+  fetchType: AnimeFetchType = "top",
+  identifier?: string
+) {
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  function mapJikanItemToMovie(item: any): Movie {
+    // many endpoints return slightly different shapes; try common properties first
+    const id = String(item.mal_id ?? item.id ?? "");
+    const title =
+      item.title || (Array.isArray(item.titles) && item.titles[0]?.title) ||
+      item.name || "Untitled";
+
+    let year = 0;
+    if (typeof item.year === "number") year = item.year;
+    else if (item.aired?.from) {
+      try {
+        const d = new Date(item.aired.from);
+        if (!Number.isNaN(d.getFullYear())) year = d.getFullYear();
+      } catch (e) {}
+    } else if (item.broadcast?.string) {
+      // no reliable year here
+    }
+
+    const poster =
+      item.images?.jpg?.large_image_url ||
+      item.images?.webp?.large_image_url ||
+      item.image_url ||
+      item.poster ||
+      "/placeholder-poster.png";
+
+    const genres: string[] =
+      (Array.isArray(item.genres) && item.genres.map((g: any) => g.name)) ||
+      (Array.isArray(item.genres) && item.genres.map((g: any) => g)) ||
+      [];
+
+    const rating = Number(item.score ?? item.rating ?? 0) || 0;
+    const plot = item.synopsis ?? item.plot ?? "";
+
+    return {
+      id,
+      title,
+      year,
+      poster,
+      genres,
+      rating,
+      plot,
+      usCertificates: "NR",
+    };
+  }
+
+  useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+    setLoading(true);
+
+    const buildUrl = () => {
+      const page = identifier && fetchType !== "search" ? identifier : undefined;
+      switch (fetchType) {
+        case "top":
+          // optional page number in identifier
+          return `https://api.jikan.moe/v4/top/anime${page ? `?page=${encodeURIComponent(page)}` : ""}`;
+        case "recommendations":
+          // recommendations endpoint supports paging
+          return `https://api.jikan.moe/v4/recommendations/anime${page ? `?page=${encodeURIComponent(page)}` : ""}`;
+        case "genre":
+          // identifier expected to be a MAL genre id (eg. 1=Action, 10=Fantasy)
+          // Jikan supports filtering via query on /anime?genres=<id>
+          // optionally allow page using identifier like "<genreId>:<page>"
+          {
+            const parts = (identifier || "").split(":");
+            const genreId = parts[0] || "";
+            const pageNum = parts[1] || "1";
+            // use the search/listing endpoint filtered by genre
+            return `https://api.jikan.moe/v4/anime?genres=${encodeURIComponent(
+              genreId
+            )}&page=${encodeURIComponent(pageNum)}`;
+          }
+        case "search":
+          // identifier is the query string; default to blank search if missing
+          const q = encodeURIComponent(identifier || "");
+          return `https://api.jikan.moe/v4/anime?q=${q}&limit=25`;
+        default:
+          return `https://api.jikan.moe/v4/top/anime`;
+      }
+    };
+
+    const fetchAnime = async () => {
+      try {
+        const url = buildUrl();
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) throw new Error(`Jikan fetch failed: ${res.status}`);
+        const json = await res.json();
+        if (!mounted) return;
+
+        const data = json.data ?? [];
+
+        // recommendations endpoint returns items shaped differently (each item has an `entry` array)
+        if (fetchType === "recommendations") {
+          // flatten recommendation entries to unique anime entries
+          const flattened: any[] = [];
+          for (const rec of data) {
+            const entries = rec.entry ?? [];
+            for (const e of entries) flattened.push(e);
+          }
+          const mapped = flattened.map(mapJikanItemToMovie);
+          // dedupe by id
+          const dedup = Array.from(new Map(mapped.map((m) => [m.id, m])).values());
+          setMovies(dedup);
+          return;
+        }
+
+        // normal list endpoints (top, search, genre filtered) return anime objects directly
+        const mapped = (Array.isArray(data) ? data : []).map(mapJikanItemToMovie);
+        setMovies(mapped);
+      } catch (err) {
+        if ((err as any)?.name !== "AbortError") console.error("Error fetching anime:", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    fetchAnime();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, [fetchType, identifier]);
+
+  return { movies, loading };
+}
