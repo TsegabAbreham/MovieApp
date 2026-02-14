@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Navigation from "@/app/Navigation";
-import { useActiveProfile } from "@/app/page";
+import { useActiveProfile, saveContinueWatchingEntry } from "@/app/page";
 import { useRemoteNav } from "@/app/hooks/useRemoteNav";
 
 interface Episode {
@@ -99,7 +99,19 @@ export default function AnimeDetail() {
           image: ep.images?.jpg?.image_url,
         }));
         setEpisodes(epsList);
-        setSelectedEpisode(epsList[0] ?? null);
+        // if a query param requests a specific episode, try to select it; otherwise default to first
+        try {
+          const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+          const epParam = params?.get("ep");
+          if (epParam) {
+            const match = epsList.find((x: any) => String(x.episodeNumber) === String(epParam) || String(x.id) === String(epParam));
+            setSelectedEpisode(match ?? epsList[0] ?? null);
+          } else {
+            setSelectedEpisode(epsList[0] ?? null);
+          }
+        } catch (e) {
+          setSelectedEpisode(epsList[0] ?? null);
+        }
 
         // Fetch cast/characters
         const castRes = await fetch(`https://api.jikan.moe/v4/anime/${id}/characters`);
@@ -129,6 +141,22 @@ export default function AnimeDetail() {
       setTimeout(() => {
         iframeWrapperRef.current?.focus();
       }, 60);
+    }
+
+    // save continue-watching for the active profile when episode changes
+    try {
+      if (selectedEpisode && anime) {
+        saveContinueWatchingEntry({
+          mediaId: anime.id,
+          kind: "anime",
+          title: anime.title,
+          poster: anime.poster,
+          episode: selectedEpisode.episodeNumber,
+          season: selectedEpisode.season ?? undefined,
+        });
+      }
+    } catch (e) {
+      console.error("save continue watching (anime) failed", e);
     }
   }, [selectedEpisode, videoType]);
 

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Navigation from "@/app/Navigation";
 import { useRouter } from "next/navigation";
 import OptimizedImg from "../../components/OptimizedImg";
+import { useActiveProfile, saveContinueWatchingEntry } from "@/app/page";
 
 
 interface Movie {
@@ -34,6 +35,9 @@ export default function MovieDetail() {
   const [actors, setActors] = useState<Actor[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const profile = useActiveProfile();
+  const wantsAutoPlay = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("autoPlay") === "true";
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -136,6 +140,17 @@ export default function MovieDetail() {
     };
   }, [id]);
 
+  // save a continue-watching entry when the movie is loaded and a profile is active
+  useEffect(() => {
+    if (movie && profile && profile.id) {
+      try {
+        saveContinueWatchingEntry({ mediaId: movie.id, kind: "movie", title: movie.title, poster: movie.poster });
+      } catch (e) {
+        console.error("Failed to save continue-watching entry", e);
+      }
+    }
+  }, [movie, profile?.id]);
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center text-white">
@@ -173,12 +188,15 @@ export default function MovieDetail() {
           <div className="flex-1 space-y-4">
             <div className="w-full bg-black rounded overflow-hidden">
               <iframe
-                src={`https://vidsrc.cc/v2/embed/movie/${movie.id}?autoPlay=false`}
+                src={`https://vidsrc.cc/v2/embed/movie/${movie.id}?autoPlay=${wantsAutoPlay ? "true" : "false"}`}
                 style={{ width: "100%", height: "520px" }}
                 allow="autoplay; fullscreen"
                 title={movie.title}
               />
             </div>
+
+            {/* continue-watching saved client-side when user views this movie */}
+
 
             {/* Summary card under the video (desktop shows poster in sidebar; mobile shows summary here) */}
             <div className="bg-gray-800 rounded p-4">

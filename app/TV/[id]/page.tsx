@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Navigation from "@/app/Navigation";
 
-import { useActiveProfile } from "@/app/page";
+import { useActiveProfile, saveContinueWatchingEntry } from "@/app/page";
 import { ratingToAge } from "@/app/page";
 
 import { useRemoteNav } from "@/app/hooks/useRemoteNav";
@@ -248,7 +248,24 @@ export default function TVShowDetail() {
           .sort((a, b) => (Number.isFinite(a.episodeNumber) && Number.isFinite(b.episodeNumber) ? a.episodeNumber - b.episodeNumber : 0));
 
         setEpisodesBySeason((prev) => ({ ...prev, [selectedSeason]: epList }));
-        setSelectedEpisode((prev) => (prev && prev.season === selectedSeason ? prev : epList[0] ?? null));
+        // if URL query asks for a specific episode, try to select it
+        try {
+          const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+          const epParam = params?.get("ep");
+          const seasonParam = params?.get("season");
+          if (seasonParam && String(seasonParam) !== String(selectedSeason)) {
+            // if season in URL doesn't match the one we're currently processing, leave selection to normal flow
+            // caller may have already set selectedSeason from earlier effect
+          }
+          if (epParam) {
+            const match = epList.find((x) => String(x.episodeNumber) === String(epParam) || String(x.id) === String(epParam));
+            setSelectedEpisode(match ?? (epList[0] ?? null));
+          } else {
+            setSelectedEpisode((prev) => (prev && prev.season === selectedSeason ? prev : epList[0] ?? null));
+          }
+        } catch (e) {
+          setSelectedEpisode((prev) => (prev && prev.season === selectedSeason ? prev : epList[0] ?? null));
+        }
       } catch (err: any) {
         if (err.name === "AbortError") return;
         console.error(err);
@@ -275,6 +292,20 @@ export default function TVShowDetail() {
       setTimeout(() => {
         iframeWrapperRef.current?.focus();
       }, 60);
+
+      // save continue-watching for the active profile
+      try {
+        saveContinueWatchingEntry({
+          mediaId: show?.id,
+          kind: "tv",
+          title: show?.title,
+          poster: show?.poster,
+          season: selectedEpisode.season,
+          episode: selectedEpisode.episodeNumber,
+        });
+      } catch (e) {
+        console.error("save continue watching (tv) failed", e);
+      }
     }
   }, [selectedEpisode]);
 

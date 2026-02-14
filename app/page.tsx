@@ -178,6 +178,75 @@ export function deleteProfileById(id: string) {
   }
 }
 
+// ---------- Continue-watching helpers (per-profile) ----------
+// Entry shape: { mediaId, kind: 'movie'|'tv'|'anime', title, poster, season?, episode?, updatedAt }
+export function saveContinueWatchingEntry(entry: any) {
+  try {
+    const active = Store.getSnapshot();
+    if (!active || !active.id) return;
+    const profiles = readProfiles();
+    const idx = profiles.findIndex((p: any) => p.id === active.id);
+    if (idx === -1) return;
+
+    const p = profiles[idx];
+    p.continueWatching = p.continueWatching || [];
+
+    // create a stable key to avoid duplicates (media + optional season/episode)
+    const key = `${entry.kind}:${entry.mediaId}:${entry.season ?? ""}:${entry.episode ?? ""}`;
+    // remove any existing entry for the same key
+    p.continueWatching = p.continueWatching.filter((e: any) => {
+      const k = `${e.kind}:${e.mediaId}:${e.season ?? ""}:${e.episode ?? ""}`;
+      return k !== key;
+    });
+
+    // add timestamp then insert at front
+    const newEntry = { ...entry, updatedAt: Date.now() };
+    p.continueWatching.unshift(newEntry);
+
+    // keep a reasonable limit
+    p.continueWatching = p.continueWatching.slice(0, 12);
+
+    profiles[idx] = p;
+    writeProfiles(profiles);
+
+    // refresh in-memory snapshot so UI updates
+    Store.refreshFromStorage();
+  } catch (err) {
+    console.error("saveContinueWatchingEntry failed", err);
+  }
+}
+
+export function getContinueWatchingForProfile(profileId?: string | null) {
+  try {
+    const profiles = readProfiles();
+    const p = profiles.find((x: any) => x.id === profileId) ?? null;
+    return (p && p.continueWatching) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function removeContinueWatchingEntry(mediaKey: { kind: string; mediaId: string; season?: any; episode?: any }) {
+  try {
+    const active = Store.getSnapshot();
+    if (!active || !active.id) return;
+    const profiles = readProfiles();
+    const idx = profiles.findIndex((p: any) => p.id === active.id);
+    if (idx === -1) return;
+
+    const key = `${mediaKey.kind}:${mediaKey.mediaId}:${mediaKey.season ?? ""}:${mediaKey.episode ?? ""}`;
+    profiles[idx].continueWatching = (profiles[idx].continueWatching || []).filter((e: any) => {
+      const k = `${e.kind}:${e.mediaId}:${e.season ?? ""}:${e.episode ?? ""}`;
+      return k !== key;
+    });
+
+    writeProfiles(profiles);
+    Store.refreshFromStorage();
+  } catch (err) {
+    console.error("removeContinueWatchingEntry failed", err);
+  }
+}
+
 
 // Detect platform to push download options
 export function detectPlatform() {
