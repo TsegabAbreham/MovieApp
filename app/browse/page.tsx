@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Navigation from "../Navigation";
 import { Input } from "@heroui/react";
 import { Card } from "@heroui/card";
+import OptimizedImg from "../components/OptimizedImg";
 import { useActiveProfile } from "../page"; // keep your existing import path to the profile hook
 
 interface Movie {
@@ -283,7 +284,7 @@ export default function BrowsePage() {
                         onClick={() => goTo(m)}
                         className="relative w-full h-[260px] outline-none transition-all rounded-lg"
                       >
-                        <img loading="lazy" src={m.poster} alt={m.title} className="w-full h-full object-cover rounded-lg" />
+                        <OptimizedImg src={m.poster} alt={m.title} className="w-full h-full object-cover rounded-lg" />
                         <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 text-xs rounded font-semibold">★ {m.rating?.toFixed?.(1) ?? "–"}</div>
                         <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs rounded font-semibold">{m.year || "—"}</div>
                         <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">

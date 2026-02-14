@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Navigation from "@/app/Navigation";
 import { useRouter } from "next/navigation";
+import OptimizedImg from "../../components/OptimizedImg";
 
 
 interface Movie {
@@ -196,8 +197,7 @@ export default function MovieDetail() {
           <aside className="w-full md:w-80 flex-shrink-0">
             <div className="bg-gray-800 rounded p-3 flex flex-col h-[520px]">
               <div className="flex flex-col items-center mb-3">
-                <img src={movie.poster} alt={movie.title} className="w-40 h-auto rounded-lg object-cover" />
-                <h3 className="mt-3 text-lg font-semibold text-center">{movie.title}</h3>
+                <OptimizedImg src={movie.poster} alt={movie.title} className="w-40 h-auto rounded-lg object-cover" />
                 <div className="text-sm text-gray-300 mt-1 text-center">{movie.year}</div>
               </div>
 
@@ -223,7 +223,7 @@ export default function MovieDetail() {
                     {actors.map((actor) => (
                       <div key={actor.id} className="flex items-center gap-3">
                         <div className="w-12 h-16 bg-gray-700 rounded overflow-hidden flex-shrink-0">
-                          <img src={actor.image} alt={actor.name} className="w-full h-full object-cover" />
+                          <OptimizedImg src={actor.image} alt={actor.name} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate">{actor.name}</div>

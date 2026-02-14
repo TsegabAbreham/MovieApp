@@ -120,3 +120,10 @@ select:-webkit-autofill:focus {
   outline: none !important;
   box-shadow: none !important;
 }
+
+/* Optimized image: lightweight placeholder + fade-in to reduce jank */
+.opt-img-root { position: relative; overflow: hidden; background: rgba(15,23,36,0.2); }
+.opt-img-placeholder { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.02) 100%); animation: opt-pulse 1.6s ease-in-out infinite; }
+.opt-img { width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 320ms ease-in-out; will-change: opacity; }
+.opt-img-loaded { opacity: 1; }
+@keyframes opt-pulse { 0% { opacity: 1 } 50% { opacity: 0.55 } 100% { opacity: 1 } }

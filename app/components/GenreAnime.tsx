@@ -7,6 +7,7 @@ import { Card } from "@heroui/card";
 import { Movie } from "../hooks/useMedia";
 import { useRemoteNav } from "../hooks/useRemoteNav";
 import { useAnimeFetch } from "../hooks/useMedia";
+import OptimizedImg from "./OptimizedImg";
 
 interface GenreAnimeProps {
   /**
@@ -82,7 +83,7 @@ function GenreRow({
                 className="w-[180px] md:w-[220px] overflow-hidden rounded-lg transform transition-transform duration-300 hover:scale-105 hover:shadow-2xl"
               >
                 <div className="relative w-full h-[270px] md:h-[320px]">
-                  <img src={m.poster} alt={m.title} className="w-full h-full object-cover rounded-lg" loading="lazy" />
+                  <OptimizedImg src={m.poster} alt={m.title} className="w-full h-full object-cover rounded-lg" />
                   <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 text-xs rounded font-semibold">★ {m.rating.toFixed(1)}</div>
                   <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-xs rounded font-semibold">{m.year}</div>
                   {m.usCertificates && <div className="absolute top-2 left-2 bg-black/70 px-2 py-1 text-xs rounded font-semibold">{m.usCertificates}</div>}

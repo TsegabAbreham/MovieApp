@@ -7,6 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Movie } from "../hooks/useMedia";
 import { ratingToAge } from "../page";
 import { useRemoteNav } from "../hooks/useRemoteNav";
+import OptimizedImg from "./OptimizedImg";
 
 interface FeaturedProps {
   movies: Movie[];
@@ -260,13 +261,9 @@ export default function Featured({ movies, age = 0 }: FeaturedProps) {
                         : "0 18px 40px rgba(0,0,0,0.45)",
                     }}
                   >
-                    <img
-                      src={m.poster}
-                      alt={m.title}
-                      className="w-full h-[420px] md:h-[520px] object-cover"
-                      style={{ display: "block" }}
-                      draggable={false}
-                    />
+                    <div className="w-full h-[420px] md:h-[520px] relative bg-gray-800/5 overflow-hidden">
+                      <OptimizedImg src={m.poster} alt={m.title} className="w-full h-full object-cover" priority={isActive} draggable={false} />
+                    </div>
 
                     {/* top-to-bottom gradient to create depth on image */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />

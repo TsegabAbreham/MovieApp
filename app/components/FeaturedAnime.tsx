@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 
 import { ratingToAge } from "../page";
 import { useRemoteNav } from "../hooks/useRemoteNav";
+import OptimizedImg from "./OptimizedImg";
 import { useAnimeFetch } from "../hooks/useMedia";
 import Loading from "./loading";
 
@@ -266,13 +267,9 @@ const featuredMovies = useMemo(() => {
                         : "0 18px 40px rgba(0,0,0,0.45)",
                     }}
                   >
-                    <img
-                      src={m.poster}
-                      alt={m.title}
-                      className="w-full h-[420px] md:h-[520px] object-cover"
-                      style={{ display: "block" }}
-                      draggable={false}
-                    />
+                    <div className="w-full h-[420px] md:h-[520px] relative bg-gray-800/5 overflow-hidden">
+                      <OptimizedImg src={m.poster} alt={m.title} className="w-full h-full object-cover" priority={isActive} draggable={false} />
+                    </div>
 
                     {/* gradient for depth */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />
