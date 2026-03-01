@@ -135,7 +135,18 @@ export default function TVShowDetail() {
         setSeasons(seasonsArray);
 
         if (seasonsArray.length > 0 && !cancelled) {
-          setSelectedSeason(seasonsArray[0].season);
+          // prefer season from query string if valid
+          let desired = seasonsArray[0].season;
+          try {
+            const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+            const seasonParam = params?.get("season");
+            if (seasonParam && seasonsArray.find((s) => String(s.season) === String(seasonParam))) {
+              desired = seasonParam;
+            }
+          } catch (e) {
+            // ignore
+          }
+          setSelectedSeason(desired);
         }
       } catch (err: any) {
         console.error(err);
@@ -252,14 +263,12 @@ export default function TVShowDetail() {
         try {
           const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
           const epParam = params?.get("ep");
-          const seasonParam = params?.get("season");
-          if (seasonParam && String(seasonParam) !== String(selectedSeason)) {
-            // if season in URL doesn't match the one we're currently processing, leave selection to normal flow
-            // caller may have already set selectedSeason from earlier effect
-          }
+          // when episodes arrive, honour query params for season/episode
           if (epParam) {
-            const match = epList.find((x) => String(x.episodeNumber) === String(epParam) || String(x.id) === String(epParam));
-            setSelectedEpisode(match ?? (epList[0] ?? null));
+            const match = epList.find(
+              (x) => String(x.episodeNumber) === String(epParam) || String(x.id) === String(epParam)
+            );
+            setSelectedEpisode(match ?? epList[0] ?? null);
           } else {
             setSelectedEpisode((prev) => (prev && prev.season === selectedSeason ? prev : epList[0] ?? null));
           }

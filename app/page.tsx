@@ -191,12 +191,12 @@ export function saveContinueWatchingEntry(entry: any) {
     const p = profiles[idx];
     p.continueWatching = p.continueWatching || [];
 
-    // create a stable key to avoid duplicates (media + optional season/episode)
-    const key = `${entry.kind}:${entry.mediaId}:${entry.season ?? ""}:${entry.episode ?? ""}`;
-    // remove any existing entry for the same key
+    // if user watches another episode/season of the same show we want only one
+    // entry per title; drop any existing entries for the same mediaId+kind before
+    // adding the new record.  This keeps the list free of duplicates while still
+    // preserving the most recent progress.
     p.continueWatching = p.continueWatching.filter((e: any) => {
-      const k = `${e.kind}:${e.mediaId}:${e.season ?? ""}:${e.episode ?? ""}`;
-      return k !== key;
+      return !(e.kind === entry.kind && e.mediaId === entry.mediaId);
     });
 
     // add timestamp then insert at front
@@ -234,10 +234,9 @@ export function removeContinueWatchingEntry(mediaKey: { kind: string; mediaId: s
     const idx = profiles.findIndex((p: any) => p.id === active.id);
     if (idx === -1) return;
 
-    const key = `${mediaKey.kind}:${mediaKey.mediaId}:${mediaKey.season ?? ""}:${mediaKey.episode ?? ""}`;
+    // remove any entries for this mediaId/kind (ignore season/episode)
     profiles[idx].continueWatching = (profiles[idx].continueWatching || []).filter((e: any) => {
-      const k = `${e.kind}:${e.mediaId}:${e.season ?? ""}:${e.episode ?? ""}`;
-      return k !== key;
+      return !(e.kind === mediaKey.kind && e.mediaId === mediaKey.mediaId);
     });
 
     writeProfiles(profiles);
