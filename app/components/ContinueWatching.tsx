@@ -71,7 +71,15 @@ export default function ContinueWatching() {
               <div className="relative w-[180px] h-[260px] bg-gray-700">
                 <OptimizedImg src={it.poster || placeholder} alt={it.title} className="w-full h-full object-cover" />
                 <button
-                  onClick={() => removeContinueWatchingEntry({ kind: it.kind, mediaId: it.mediaId, season: it.season, episode: it.episode })}
+                  onClick={(e) => {
+                    // stop the click from bubbling up to the card wrapper, which
+                    // also has an onClick handler that navigates.  without this,
+                    // the remove button seemed to do nothing because the
+                    // navigation happened immediately after removing the entry.
+                    e.stopPropagation();
+                    e.preventDefault();
+                    removeContinueWatchingEntry({ kind: it.kind, mediaId: it.mediaId, season: it.season, episode: it.episode });
+                  }}
                   className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 p-1 rounded text-white text-xs"
                   aria-label="Remove from continue watching"
                 >
